@@ -14,6 +14,8 @@ const { execSync } = require('child_process');
 const CONFIG_DIR = path.join(process.env.HOME, '.config', 'opencode');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'oh-my-opencode.json');
 const BACKUP_DIR = path.join(CONFIG_DIR, 'backups');
+const CONFIGS_DIR = path.join(CONFIG_DIR, 'configs');
+const ACTIVE_CONFIG_FILE = path.join(CONFIG_DIR, 'active-config.json');
 
 // Default agent configurations
 const DEFAULTS = {
@@ -50,6 +52,190 @@ const DEFAULTS = {
     }
   }
 };
+
+// Configuration Manager
+class ConfigurationManager {
+  constructor() {
+    this.ensureDirectories();
+  }
+
+  ensureDirectories() {
+    if (!fs.existsSync(CONFIGS_DIR)) {
+      fs.mkdirSync(CONFIGS_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(BACKUP_DIR)) {
+      fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    }
+  }
+
+  validateConfigName(name) {
+    if (!name || typeof name !== 'string') return false;
+    // Allow alphanumeric, hyphens, underscores
+    return /^[a-z0-9-_]+$/i.test(name);
+  }
+
+  getConfigPath(name) {
+    return path.join(CONFIGS_DIR, `${name}.json`);
+  }
+
+  listConfigurations() {
+    try {
+      const files = fs.readdirSync(CONFIGS_DIR)
+        .filter(f => f.endsWith('.json'))
+        .map(f => f.replace('.json', ''));
+      return files;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  configExists(name) {
+    return fs.existsSync(this.getConfigPath(name));
+  }
+
+  loadConfiguration(name) {
+    const configPath = this.getConfigPath(name);
+    try {
+      const data = fs.readFileSync(configPath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      throw new Error(`Failed to load configuration "${name}": ${error.message}`);
+    }
+  }
+
+  saveConfiguration(name, description, config) {
+    if (!this.validateConfigName(name)) {
+      throw new Error('Invalid configuration name. Use only letters, numbers, hyphens, and underscores.');
+    }
+
+    const configPath = this.getConfigPath(name);
+    const now = new Date().toISOString();
+    
+    let metadata = {
+      name,
+      description,
+      created: now,
+      modified: now,
+      config
+    };
+
+    // Preserve creation timestamp if config exists
+    if (fs.existsSync(configPath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (existing.created) {
+          metadata.created = existing.created;
+        }
+      } catch (e) {
+        // Ignore, will use new timestamp
+      }
+    }
+
+    fs.writeFileSync(configPath, JSON.stringify(metadata, null, 2));
+    return metadata;
+  }
+
+  deleteConfiguration(name) {
+    const configPath = this.getConfigPath(name);
+    if (!fs.existsSync(configPath)) {
+      throw new Error(`Configuration "${name}" does not exist`);
+    }
+    fs.unlinkSync(configPath);
+  }
+
+  renameConfiguration(oldName, newName) {
+    if (!this.validateConfigName(newName)) {
+      throw new Error('Invalid configuration name. Use only letters, numbers, hyphens, and underscores.');
+    }
+
+    const oldPath = this.getConfigPath(oldName);
+    const newPath = this.getConfigPath(newName);
+
+    if (!fs.existsSync(oldPath)) {
+      throw new Error(`Configuration "${oldName}" does not exist`);
+    }
+
+    if (fs.existsSync(newPath)) {
+      throw new Error(`Configuration "${newName}" already exists`);
+    }
+
+    // Update name in metadata
+    const metadata = JSON.parse(fs.readFileSync(oldPath, 'utf8'));
+    metadata.name = newName;
+    metadata.modified = new Date().toISOString();
+    
+    fs.writeFileSync(newPath, JSON.stringify(metadata, null, 2));
+    fs.unlinkSync(oldPath);
+  }
+
+  getActiveConfig() {
+    try {
+      if (fs.existsSync(ACTIVE_CONFIG_FILE)) {
+        const data = JSON.parse(fs.readFileSync(ACTIVE_CONFIG_FILE, 'utf8'));
+        return data.active;
+      }
+    } catch (error) {
+      // Fall through to default
+    }
+    return null;
+  }
+
+  setActiveConfig(name) {
+    fs.writeFileSync(ACTIVE_CONFIG_FILE, JSON.stringify({ active: name }, null, 2));
+  }
+
+  updateMainConfigFile(config) {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  }
+
+  migrateIfNeeded() {
+    this.ensureDirectories();
+    
+    // Check if migration already done
+    if (this.listConfigurations().length > 0) {
+      return false;
+    }
+
+    console.log('\nFirst-time setup: migrating to configuration profiles...\n');
+
+    // Create omo-default from DEFAULTS
+    this.saveConfiguration('omo-default', 'Oh My Opencode default configuration', DEFAULTS);
+
+    // Migrate existing config if it exists
+    if (fs.existsSync(CONFIG_FILE)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        this.saveConfiguration('user-config', 'Migrated user configuration', existing);
+        this.setActiveConfig('user-config');
+        console.log('✓ Migrated existing configuration to "user-config"');
+      } catch (error) {
+        console.error('Warning: Could not migrate existing config, using defaults');
+        this.setActiveConfig('omo-default');
+      }
+    } else {
+      this.setActiveConfig('omo-default');
+    }
+
+    console.log('✓ Created "omo-default" configuration');
+    console.log('✓ Migration complete\n');
+    return true;
+  }
+
+  exportConfiguration(name, destPath) {
+    const metadata = this.loadConfiguration(name);
+    fs.writeFileSync(destPath, JSON.stringify(metadata, null, 2));
+  }
+
+  importConfiguration(sourcePath, name, description) {
+    const data = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+    
+    // Handle both wrapped and unwrapped formats
+    const config = data.config || data;
+    const desc = description || data.description || 'Imported configuration';
+    
+    this.saveConfiguration(name, desc, config);
+  }
+}
 
 // Agent characteristics for recommendations
 const AGENT_PROFILES = {
@@ -88,8 +274,11 @@ const AGENT_PROFILES = {
 class AgentConfigTool {
   constructor() {
     this.config = null;
+    this.configName = null;
+    this.configMetadata = null;
     this.models = null;
     this.providers = [];
+    this.configManager = new ConfigurationManager();
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -98,8 +287,22 @@ class AgentConfigTool {
 
   async loadConfig() {
     try {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-      this.config = JSON.parse(data);
+      // Run migration if needed
+      this.configManager.migrateIfNeeded();
+
+      // Get active config name
+      this.configName = this.configManager.getActiveConfig();
+      if (!this.configName) {
+        this.configName = 'omo-default';
+        this.configManager.setActiveConfig(this.configName);
+      }
+
+      // Load configuration metadata
+      this.configMetadata = this.configManager.loadConfiguration(this.configName);
+      this.config = this.configMetadata.config;
+
+      // Update main config file to match active config
+      this.configManager.updateMainConfigFile(this.config);
     } catch (error) {
       console.error(`Error loading config: ${error.message}`);
       process.exit(1);
@@ -240,11 +443,14 @@ class AgentConfigTool {
 
   createBackup() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const backupFile = path.join(BACKUP_DIR, `oh-my-opencode-${timestamp}.json`);
+    const backupFile = path.join(BACKUP_DIR, `${this.configName}-${timestamp}.json`);
     
     try {
-      fs.copyFileSync(CONFIG_FILE, backupFile);
-      console.log(`✓ Backup created: ${backupFile}\n`);
+      const configPath = this.configManager.getConfigPath(this.configName);
+      if (fs.existsSync(configPath)) {
+        fs.copyFileSync(configPath, backupFile);
+        console.log(`✓ Backup created: ${backupFile}\n`);
+      }
       return backupFile;
     } catch (error) {
       console.error(`Error creating backup: ${error.message}`);
@@ -255,7 +461,18 @@ class AgentConfigTool {
   saveConfig() {
     try {
       this.createBackup();
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.config, null, 2));
+      
+      // Update metadata modified timestamp and save
+      const description = this.configMetadata?.description || 'Configuration';
+      this.configMetadata = this.configManager.saveConfiguration(
+        this.configName,
+        description,
+        this.config
+      );
+      
+      // Update main config file
+      this.configManager.updateMainConfigFile(this.config);
+      
       console.log('✓ Configuration saved successfully\n');
     } catch (error) {
       console.error(`Error saving config: ${error.message}`);
@@ -263,10 +480,14 @@ class AgentConfigTool {
     }
   }
 
-  restoreDefaults() {
-    this.config = JSON.parse(JSON.stringify(DEFAULTS));
-    this.saveConfig();
-    console.log('✓ Restored default agent configuration\n');
+  async restoreDefaults() {
+    try {
+      // Switch to omo-default configuration
+      await this.switchToConfiguration('omo-default');
+      console.log('✓ Switched to default configuration\n');
+    } catch (error) {
+      console.error(`Error restoring defaults: ${error.message}`);
+    }
   }
 
   formatModel(model) {
@@ -480,6 +701,341 @@ class AgentConfigTool {
     }
   }
 
+  async switchToConfiguration(configName) {
+    if (!this.configManager.configExists(configName)) {
+      throw new Error(`Configuration "${configName}" does not exist`);
+    }
+
+    this.configName = configName;
+    this.configManager.setActiveConfig(configName);
+    this.configMetadata = this.configManager.loadConfiguration(configName);
+    this.config = this.configMetadata.config;
+    this.configManager.updateMainConfigFile(this.config);
+  }
+
+  async manageConfigurationsMenu() {
+    while (true) {
+      console.clear();
+      console.log('\n' + '='.repeat(70));
+      console.log('Manage Configurations');
+      console.log('='.repeat(70) + '\n');
+
+      const configs = this.configManager.listConfigurations();
+      
+      console.log('AVAILABLE CONFIGURATIONS:\n');
+      configs.forEach((name, idx) => {
+        const active = name === this.configName ? ' [ACTIVE]' : '';
+        const metadata = this.configManager.loadConfiguration(name);
+        const modDate = new Date(metadata.modified).toLocaleDateString();
+        console.log(`  ${idx + 1}. ${name}${active}`);
+        console.log(`     ${metadata.description}`);
+        console.log(`     Modified: ${modDate}\n`);
+      });
+
+      console.log('ACTIONS:\n');
+      console.log('  [S] Switch active configuration');
+      console.log('  [C] Create new configuration');
+      console.log('  [R] Rename configuration');
+      console.log('  [D] Delete configuration');
+      console.log('  [E] Export configuration');
+      console.log('  [I] Import configuration');
+      console.log('  [X] Return to main menu\n');
+
+      const choice = await this.prompt('Select option: ');
+
+      switch (choice.toLowerCase()) {
+        case 's':
+          await this.switchConfiguration();
+          break;
+        case 'c':
+          await this.createConfiguration();
+          break;
+        case 'r':
+          await this.renameConfiguration();
+          break;
+        case 'd':
+          await this.deleteConfiguration();
+          break;
+        case 'e':
+          await this.exportConfiguration();
+          break;
+        case 'i':
+          await this.importConfiguration();
+          break;
+        case 'x':
+          return;
+        default:
+          console.log('Invalid option');
+          await this.prompt('Press Enter to continue...');
+      }
+    }
+  }
+
+  async switchConfiguration() {
+    console.clear();
+    console.log('\n--- Switch Configuration ---\n');
+    
+    const configs = this.configManager.listConfigurations();
+    configs.forEach((name, idx) => {
+      const active = name === this.configName ? ' [ACTIVE]' : '';
+      console.log(`  ${idx + 1}. ${name}${active}`);
+    });
+
+    console.log('\n[C] Cancel\n');
+    const choice = await this.prompt('Select configuration: ');
+
+    if (choice.toLowerCase() === 'c') return;
+
+    const idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < configs.length) {
+      const configName = configs[idx];
+      if (configName === this.configName) {
+        console.log('Already active');
+      } else {
+        try {
+          await this.switchToConfiguration(configName);
+          console.log(`\n✓ Switched to configuration: ${configName}`);
+        } catch (error) {
+          console.error(`Error: ${error.message}`);
+        }
+      }
+    } else {
+      console.log('Invalid selection');
+    }
+
+    await this.prompt('Press Enter to continue...');
+  }
+
+  async createConfiguration() {
+    console.clear();
+    console.log('\n--- Create New Configuration ---\n');
+
+    const name = await this.prompt('Configuration name: ');
+    if (!name) return;
+
+    if (this.configManager.configExists(name)) {
+      console.log('Configuration already exists');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const description = await this.prompt('Description: ');
+    
+    console.log('\nCreate from:\n');
+    console.log('  [1] Copy omo-default (recommended - start with OmO agents)');
+    console.log('  [2] Copy current configuration');
+    console.log('  [3] Minimal configuration (no agents)\n');
+
+    const choice = await this.prompt('Select option: ');
+    
+    let config;
+    let needsSetup = false;
+    
+    switch (choice) {
+      case '1':
+        const defaultMeta = this.configManager.loadConfiguration('omo-default');
+        config = JSON.parse(JSON.stringify(defaultMeta.config));
+        break;
+      case '2':
+        config = JSON.parse(JSON.stringify(this.config));
+        break;
+      case '3':
+        config = { google_auth: false, agents: {}, mcps: {} };
+        needsSetup = true;
+        break;
+      default:
+        console.log('Invalid option');
+        await this.prompt('Press Enter to continue...');
+        return;
+    }
+
+    try {
+      this.configManager.saveConfiguration(name, description || 'New configuration', config);
+      console.log(`\n✓ Created configuration: ${name}`);
+      
+      if (needsSetup) {
+        console.log('\nNote: This configuration has no agents.');
+        console.log('Oh My Opencode expects agents to be configured.');
+        console.log('You should add agents before using this configuration.');
+      }
+      
+      const switchNow = await this.prompt('\nSwitch to this configuration now? (yes/no): ');
+      if (switchNow.toLowerCase() === 'yes') {
+        await this.switchToConfiguration(name);
+        console.log(`✓ Switched to: ${name}`);
+        
+        if (needsSetup) {
+          console.log('\nTip: Use [A] Add new agent to configure agents for OmO.');
+        } else if (choice === '1') {
+          console.log('\nTip: Use [E] Edit agent model to customize agent models.');
+        }
+      }
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+    }
+
+    await this.prompt('\nPress Enter to continue...');
+  }
+
+  async renameConfiguration() {
+    console.clear();
+    console.log('\n--- Rename Configuration ---\n');
+
+    const configs = this.configManager.listConfigurations();
+    configs.forEach((name, idx) => {
+      console.log(`  ${idx + 1}. ${name}`);
+    });
+
+    console.log('\n[C] Cancel\n');
+    const choice = await this.prompt('Select configuration to rename: ');
+
+    if (choice.toLowerCase() === 'c') return;
+
+    const idx = parseInt(choice) - 1;
+    if (idx < 0 || idx >= configs.length) {
+      console.log('Invalid selection');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const oldName = configs[idx];
+    const newName = await this.prompt('New name: ');
+
+    if (!newName) return;
+
+    try {
+      this.configManager.renameConfiguration(oldName, newName);
+      
+      // Update active config if we renamed the active one
+      if (oldName === this.configName) {
+        this.configName = newName;
+        this.configManager.setActiveConfig(newName);
+      }
+      
+      console.log(`\n✓ Renamed "${oldName}" to "${newName}"`);
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+    }
+
+    await this.prompt('Press Enter to continue...');
+  }
+
+  async deleteConfiguration() {
+    console.clear();
+    console.log('\n--- Delete Configuration ---\n');
+
+    const configs = this.configManager.listConfigurations();
+    
+    if (configs.length === 1) {
+      console.log('Cannot delete the last configuration');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    configs.forEach((name, idx) => {
+      const active = name === this.configName ? ' [ACTIVE - cannot delete]' : '';
+      console.log(`  ${idx + 1}. ${name}${active}`);
+    });
+
+    console.log('\n[C] Cancel\n');
+    const choice = await this.prompt('Select configuration to delete: ');
+
+    if (choice.toLowerCase() === 'c') return;
+
+    const idx = parseInt(choice) - 1;
+    if (idx < 0 || idx >= configs.length) {
+      console.log('Invalid selection');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const configName = configs[idx];
+    
+    if (configName === this.configName) {
+      console.log('Cannot delete active configuration. Switch to another first.');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const confirm = await this.prompt(`Delete "${configName}"? This cannot be undone. (yes/no): `);
+    if (confirm.toLowerCase() === 'yes') {
+      try {
+        this.configManager.deleteConfiguration(configName);
+        console.log(`\n✓ Deleted configuration: ${configName}`);
+      } catch (error) {
+        console.error(`Error: ${error.message}`);
+      }
+    }
+
+    await this.prompt('Press Enter to continue...');
+  }
+
+  async exportConfiguration() {
+    console.clear();
+    console.log('\n--- Export Configuration ---\n');
+
+    const configs = this.configManager.listConfigurations();
+    configs.forEach((name, idx) => {
+      console.log(`  ${idx + 1}. ${name}`);
+    });
+
+    console.log('\n[C] Cancel\n');
+    const choice = await this.prompt('Select configuration to export: ');
+
+    if (choice.toLowerCase() === 'c') return;
+
+    const idx = parseInt(choice) - 1;
+    if (idx < 0 || idx >= configs.length) {
+      console.log('Invalid selection');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const configName = configs[idx];
+    const destPath = await this.prompt('Destination path (e.g., ~/my-config.json): ');
+
+    if (!destPath) return;
+
+    try {
+      const expandedPath = destPath.replace(/^~/, process.env.HOME);
+      this.configManager.exportConfiguration(configName, expandedPath);
+      console.log(`\n✓ Exported "${configName}" to ${expandedPath}`);
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+    }
+
+    await this.prompt('Press Enter to continue...');
+  }
+
+  async importConfiguration() {
+    console.clear();
+    console.log('\n--- Import Configuration ---\n');
+
+    const sourcePath = await this.prompt('Source path (e.g., ~/my-config.json): ');
+    if (!sourcePath) return;
+
+    const name = await this.prompt('Configuration name: ');
+    if (!name) return;
+
+    if (this.configManager.configExists(name)) {
+      console.log('Configuration with this name already exists');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const description = await this.prompt('Description (optional): ');
+
+    try {
+      const expandedPath = sourcePath.replace(/^~/, process.env.HOME);
+      this.configManager.importConfiguration(expandedPath, name, description);
+      console.log(`\n✓ Imported configuration as "${name}"`);
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+    }
+
+    await this.prompt('Press Enter to continue...');
+  }
+
   async setPreferredProviders() {
     console.clear();
     console.log('\n--- Set Preferred Providers ---\n');
@@ -540,7 +1096,13 @@ class AgentConfigTool {
       console.clear();
       console.log('\n' + '='.repeat(70));
       console.log('Oh My Opencode - Agent Configuration');
-      console.log('='.repeat(70) + '\n');
+      console.log('='.repeat(70));
+      
+      // Show active configuration
+      const modDate = new Date(this.configMetadata.modified).toLocaleDateString();
+      console.log(`\nActive Configuration: ${this.configName}`);
+      console.log(`Description: ${this.configMetadata.description}`);
+      console.log(`Modified: ${modDate}\n`);
 
       console.log('CURRENT AGENTS:\n');
       const agents = Object.entries(this.config.agents || {});
@@ -558,6 +1120,7 @@ class AgentConfigTool {
       console.log('  [A] Add new agent');
       console.log('  [D] Delete agent');
       console.log('  [P] Set preferred providers');
+      console.log('  [M] Manage configurations');
       console.log('  [R] Restore defaults');
       console.log('  [B] View backups');
       console.log('  [Q] Quit\n');
@@ -591,10 +1154,13 @@ class AgentConfigTool {
         case 'p':
           await this.setPreferredProviders();
           break;
+        case 'm':
+          await this.manageConfigurationsMenu();
+          break;
         case 'r': {
           const confirm = await this.prompt('Restore all agents to defaults? (yes/no): ');
           if (confirm.toLowerCase() === 'yes') {
-            this.restoreDefaults();
+            await this.restoreDefaults();
             await this.prompt('Press Enter to continue...');
           }
           break;
@@ -618,18 +1184,38 @@ class AgentConfigTool {
     console.log('\n--- Configuration Backups ---\n');
     
     try {
-      const files = fs.readdirSync(BACKUP_DIR)
-        .filter(f => f.startsWith('oh-my-opencode-'))
+      const allFiles = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.endsWith('.json'))
         .sort()
         .reverse();
-
-      if (files.length === 0) {
-        console.log('No backups found');
+      
+      // Filter for current config
+      const currentConfigFiles = allFiles.filter(f => f.startsWith(`${this.configName}-`));
+      
+      console.log(`Backups for "${this.configName}":\n`);
+      if (currentConfigFiles.length === 0) {
+        console.log('  No backups found for this configuration');
       } else {
-        files.slice(0, 10).forEach((file, idx) => {
+        currentConfigFiles.slice(0, 10).forEach((file, idx) => {
           const stats = fs.statSync(path.join(BACKUP_DIR, file));
           console.log(`  ${idx + 1}. ${file} (${stats.size} bytes)`);
         });
+      }
+      
+      // Show option to view all backups
+      const otherFiles = allFiles.filter(f => !f.startsWith(`${this.configName}-`));
+      if (otherFiles.length > 0) {
+        console.log(`\nOther configurations have ${otherFiles.length} backup(s)`);
+        const showAll = await this.prompt('Show all backups? (yes/no): ');
+        
+        if (showAll.toLowerCase() === 'yes') {
+          console.clear();
+          console.log('\n--- All Configuration Backups ---\n');
+          allFiles.slice(0, 20).forEach((file, idx) => {
+            const stats = fs.statSync(path.join(BACKUP_DIR, file));
+            console.log(`  ${idx + 1}. ${file} (${stats.size} bytes)`);
+          });
+        }
       }
     } catch (error) {
       console.log(`Error reading backups: ${error.message}`);
