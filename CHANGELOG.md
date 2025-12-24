@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-12-24
+
+### Added
+- **CLI argument support** - Fast configuration switching from command line
+- `--switch` / `-s` - Quick switch to a configuration without interactive menu
+- `--list` / `-l` - List all available configurations
+- `--current` / `-c` - Show currently active configuration
+- `--help` / `-h` - Display usage information
+- Error handling for invalid configuration names with helpful suggestions
+
+### Changed
+- Tool now supports both interactive and CLI modes
+- Non-interactive commands exit immediately after execution
+- Updated README with CLI usage examples
+
 ## [0.1.1] - 2025-12-24
 
 ### Added

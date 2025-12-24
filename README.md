@@ -10,6 +10,8 @@ OmO Agent Config is a user-friendly command-line tool that simplifies the proces
 
 ### Key Features
 
+- **Named Configuration Profiles** - Create and switch between multiple agent configurations for different workflows
+- **CLI Quick Switch** - Fast config switching via command line: `opencode-agent-config -s work`
 - **Smart Model Recommendations** - Intelligent model suggestions based on agent type and capabilities
 - **Automatic Backups** - Every configuration change creates a timestamped backup
 - **Extensive Model Catalog** - Browse 200+ models from OpenCode, Google, Anthropic, xAI, OpenRouter
@@ -58,10 +60,29 @@ mkdir -p ~/.config/opencode/backups
 
 ## Usage
 
-### Starting the Tool
+### Command Line Interface
+
+Quickly manage configurations from the command line:
 
 ```bash
+# Interactive mode (default)
 opencode-agent-config
+
+# Quick switch to a configuration
+opencode-agent-config -s work-config
+opencode-agent-config --switch omo-default
+
+# List all configurations
+opencode-agent-config -l
+opencode-agent-config --list
+
+# Show current active configuration
+opencode-agent-config -c
+opencode-agent-config --current
+
+# Show help
+opencode-agent-config -h
+opencode-agent-config --help
 ```
 
 ### Main Menu
@@ -70,6 +91,10 @@ opencode-agent-config
 ======================================================================
 Oh My Opencode - Agent Configuration
 ======================================================================
+
+Active Configuration: work-config
+Description: Work setup
+Modified: 12/23/2025
 
 CURRENT AGENTS:
 
@@ -85,6 +110,8 @@ ACTIONS:
   [E] Edit agent model
   [A] Add new agent
   [D] Delete agent
+  [P] Set preferred providers
+  [M] Manage configurations
   [R] Restore defaults
   [B] View backups
   [Q] Quit

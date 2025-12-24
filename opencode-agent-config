@@ -1270,11 +1270,133 @@ class AgentConfigTool {
     await this.loadModels();
     await this.mainMenu();
   }
+
+  async handleCliArgs(args) {
+    const command = args[0];
+
+    switch (command) {
+      case '--help':
+      case '-h':
+        this.showHelp();
+        process.exit(0);
+        break;
+
+      case '--list':
+      case '-l':
+        await this.loadConfig();
+        this.listConfigsCli();
+        process.exit(0);
+        break;
+
+      case '--current':
+      case '-c':
+        await this.loadConfig();
+        this.showCurrentCli();
+        process.exit(0);
+        break;
+
+      case '--switch':
+      case '-s':
+        if (!args[1]) {
+          console.error('Error: Configuration name required');
+          console.log('Usage: opencode-agent-config --switch <config-name>');
+          process.exit(1);
+        }
+        await this.loadConfig();
+        await this.switchConfigCli(args[1]);
+        process.exit(0);
+        break;
+
+      default:
+        if (command && command.startsWith('-')) {
+          console.error(`Error: Unknown option '${command}'`);
+          console.log('Use --help to see available options');
+          process.exit(1);
+        }
+        // No args or unrecognized args, run interactive mode
+        await this.run();
+    }
+  }
+
+  showHelp() {
+    console.log(`
+Oh My Opencode Agent Configuration Tool
+
+USAGE:
+  opencode-agent-config [OPTIONS]
+
+OPTIONS:
+  -h, --help              Show this help message
+  -l, --list              List all configurations
+  -c, --current           Show current active configuration
+  -s, --switch <name>     Switch to specified configuration
+
+EXAMPLES:
+  opencode-agent-config                    # Run interactive mode
+  opencode-agent-config --list             # List all configurations
+  opencode-agent-config --switch work      # Switch to 'work' config
+  opencode-agent-config -s omo-default     # Switch to default config
+`);
+  }
+
+  listConfigsCli() {
+    const configs = this.configManager.listConfigurations();
+    
+    console.log('AVAILABLE CONFIGURATIONS:\n');
+    configs.forEach(name => {
+      const metadata = this.configManager.loadConfiguration(name);
+      const active = name === this.configName ? ' [ACTIVE]' : '';
+      const modDate = new Date(metadata.modified).toLocaleDateString();
+      console.log(`  ${name}${active}`);
+      console.log(`  ${metadata.description}`);
+      console.log(`  Modified: ${modDate}\n`);
+    });
+  }
+
+  showCurrentCli() {
+    const modDate = new Date(this.configMetadata.modified).toLocaleDateString();
+    console.log(`Active Configuration: ${this.configName}`);
+    console.log(`Description: ${this.configMetadata.description}`);
+    console.log(`Modified: ${modDate}`);
+    
+    const agentCount = Object.keys(this.config.agents || {}).length;
+    console.log(`\nAgents configured: ${agentCount}`);
+  }
+
+  async switchConfigCli(configName) {
+    if (!this.configManager.configExists(configName)) {
+      console.error(`Error: Configuration "${configName}" does not exist`);
+      console.log('\nAvailable configurations:');
+      const configs = this.configManager.listConfigurations();
+      configs.forEach(name => console.log(`  - ${name}`));
+      process.exit(1);
+    }
+
+    try {
+      await this.switchToConfiguration(configName);
+      console.log(`✓ Switched to configuration: ${configName}`);
+      
+      const agentCount = Object.keys(this.config.agents || {}).length;
+      console.log(`  Agents: ${agentCount}`);
+    } catch (error) {
+      console.error(`Error switching configuration: ${error.message}`);
+      process.exit(1);
+    }
+  }
 }
 
-// Run the tool
+// Parse CLI arguments and run
+const args = process.argv.slice(2);
 const tool = new AgentConfigTool();
-tool.run().catch(error => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+
+if (args.length > 0) {
+  tool.handleCliArgs(args).catch(error => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+} else {
+  tool.run().catch(error => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}
