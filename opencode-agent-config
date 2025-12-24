@@ -89,6 +89,7 @@ class AgentConfigTool {
   constructor() {
     this.config = null;
     this.models = null;
+    this.providers = [];
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -110,7 +111,8 @@ class AgentConfigTool {
       console.log('Loading available models...');
       const output = execSync('opencode models --verbose', { encoding: 'utf8' });
       this.models = this.parseModels(output);
-      console.log(`Loaded ${this.models.length} models\n`);
+      this.extractProviders();
+      console.log(`Loaded ${this.models.length} models from ${this.providers.length} providers\n`);
     } catch (error) {
       console.error(`Error loading models: ${error.message}`);
       process.exit(1);
@@ -151,6 +153,17 @@ class AgentConfigTool {
     }
 
     return models;
+  }
+
+  extractProviders() {
+    const providerSet = new Set();
+    this.models.forEach(model => {
+      const provider = model.id.split('/')[0];
+      if (provider) {
+        providerSet.add(provider);
+      }
+    });
+    this.providers = Array.from(providerSet).sort();
   }
 
   scoreModel(model, agentType) {
@@ -195,6 +208,17 @@ class AgentConfigTool {
         case "text_output":
           if (caps.output?.text) score += 5;
           break;
+      }
+    }
+
+    // Preferred provider bonus
+    const preferredProviders = this.config?.preferred_providers || [];
+    if (preferredProviders.length > 0) {
+      const provider = model.id.split('/')[0];
+      const providerIndex = preferredProviders.indexOf(provider);
+      if (providerIndex !== -1) {
+        // Higher bonus for providers earlier in the preference list
+        score += (preferredProviders.length - providerIndex) * 5;
       }
     }
 
@@ -279,6 +303,7 @@ class AgentConfigTool {
     });
 
     console.log('\n[S] Search all models');
+    console.log('[F] Filter by provider');
     console.log('[C] Cancel\n');
 
     const choice = await this.prompt('Select option: ');
@@ -289,6 +314,10 @@ class AgentConfigTool {
 
     if (choice.toLowerCase() === 's') {
       return await this.searchModels(agentType, currentModel);
+    }
+
+    if (choice.toLowerCase() === 'f') {
+      return await this.filterByProvider(agentType, currentModel);
     }
 
     const idx = parseInt(choice) - 1;
@@ -317,12 +346,59 @@ class AgentConfigTool {
       return await this.selectModel(agentType, currentModel);
     }
 
+    return await this.displayModelList(filtered, agentType, currentModel);
+  }
+
+  async filterByProvider(agentType, currentModel) {
+    console.clear();
+    console.log('\n--- Filter by Provider ---\n');
+    
+    console.log('AVAILABLE PROVIDERS:\n');
+    this.providers.forEach((provider, idx) => {
+      const count = this.models.filter(m => m.id.startsWith(provider + '/')).length;
+      console.log(`  ${idx + 1}. ${provider} (${count} models)`);
+    });
+
+    console.log('\n[A] Select All');
+    console.log('[C] Cancel\n');
+    
+    const choice = await this.prompt('Select providers (comma-separated numbers or letters): ');
+    
+    if (choice.toLowerCase() === 'c') {
+      return await this.selectModel(agentType, currentModel);
+    }
+
+    let selectedProviders = [];
+    if (choice.toLowerCase() === 'a') {
+      selectedProviders = this.providers;
+    } else {
+      const indices = choice.split(',').map(s => parseInt(s.trim()) - 1);
+      selectedProviders = indices
+        .filter(idx => idx >= 0 && idx < this.providers.length)
+        .map(idx => this.providers[idx]);
+    }
+
+    if (selectedProviders.length === 0) {
+      console.log('No providers selected');
+      await this.prompt('Press Enter to continue...');
+      return await this.filterByProvider(agentType, currentModel);
+    }
+
+    const filtered = this.models.filter(m => {
+      const provider = m.id.split('/')[0];
+      return selectedProviders.includes(provider);
+    });
+
+    return await this.displayModelList(filtered, agentType, currentModel);
+  }
+
+  async displayModelList(filtered, agentType, currentModel) {
     const perPage = 15;
     let page = 0;
 
     while (true) {
       console.clear();
-      console.log(`\n--- All Models (${filtered.length} total) - Page ${page + 1}/${Math.ceil(filtered.length / perPage)} ---\n`);
+      console.log(`\n--- Models (${filtered.length} total) - Page ${page + 1}/${Math.ceil(filtered.length / perPage)} ---\n`);
 
       const start = page * perPage;
       const end = Math.min(start + perPage, filtered.length);
@@ -401,6 +477,61 @@ class AgentConfigTool {
     }
   }
 
+  async setPreferredProviders() {
+    console.clear();
+    console.log('\n--- Set Preferred Providers ---\n');
+    
+    const currentPreferred = this.config.preferred_providers || [];
+    
+    if (currentPreferred.length > 0) {
+      console.log('CURRENT PREFERRED PROVIDERS:\n');
+      currentPreferred.forEach((provider, idx) => {
+        console.log(`  ${idx + 1}. ${provider}`);
+      });
+      console.log('');
+    }
+    
+    console.log('AVAILABLE PROVIDERS:\n');
+    this.providers.forEach((provider, idx) => {
+      const count = this.models.filter(m => m.id.startsWith(provider + '/')).length;
+      const preferred = currentPreferred.includes(provider) ? ' (preferred)' : '';
+      console.log(`  ${idx + 1}. ${provider} (${count} models)${preferred}`);
+    });
+
+    console.log('\n[C] Clear preferences');
+    console.log('[X] Cancel\n');
+    
+    const choice = await this.prompt('Select providers (comma-separated numbers) or action: ');
+    
+    if (choice.toLowerCase() === 'x') {
+      return;
+    }
+
+    if (choice.toLowerCase() === 'c') {
+      delete this.config.preferred_providers;
+      this.saveConfig();
+      console.log('✓ Cleared preferred providers');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const indices = choice.split(',').map(s => parseInt(s.trim()) - 1);
+    const selectedProviders = indices
+      .filter(idx => idx >= 0 && idx < this.providers.length)
+      .map(idx => this.providers[idx]);
+
+    if (selectedProviders.length === 0) {
+      console.log('No providers selected');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    this.config.preferred_providers = selectedProviders;
+    this.saveConfig();
+    console.log(`✓ Set preferred providers: ${selectedProviders.join(', ')}`);
+    await this.prompt('Press Enter to continue...');
+  }
+
   async mainMenu() {
     while (true) {
       console.clear();
@@ -423,6 +554,7 @@ class AgentConfigTool {
       console.log('  [E] Edit agent model');
       console.log('  [A] Add new agent');
       console.log('  [D] Delete agent');
+      console.log('  [P] Set preferred providers');
       console.log('  [R] Restore defaults');
       console.log('  [B] View backups');
       console.log('  [Q] Quit\n');
@@ -453,6 +585,9 @@ class AgentConfigTool {
           }
           break;
         }
+        case 'p':
+          await this.setPreferredProviders();
+          break;
         case 'r': {
           const confirm = await this.prompt('Restore all agents to defaults? (yes/no): ');
           if (confirm.toLowerCase() === 'yes') {
