@@ -165,3 +165,23 @@ The tool manages:
 Preserved but not modified:
 - `google_auth`: Authentication setting
 - `mcps`: Model Context Protocol services
+
+## Releases
+
+### Version Management
+
+Version is stored in the `VERSION` file. Follow semantic versioning:
+- **Bugfix** (x.x.1): Bug fixes, performance improvements, documentation
+- **Feature** (x.1.x): New features, new functionality
+- **Major** (1.x.x): Only when explicitly requested, breaking changes
+
+### Release Process
+
+1. Update `VERSION` file with new version number
+2. Update `CHANGELOG.md` with release notes
+3. Commit: `git commit -m "Bump version to x.y.z"`
+4. Tag: `git tag -a vx.y.z -m "Release vx.y.z"`
+5. Push: `git push origin main && git push origin vx.y.z`
+6. Create GitHub release from tag
+
+See `RELEASES.md` for detailed instructions.
