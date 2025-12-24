@@ -823,23 +823,58 @@ class AgentConfigTool {
     
     console.log('\nCreate from:\n');
     console.log('  [1] Copy omo-default (recommended - start with OmO agents)');
-    console.log('  [2] Copy current configuration');
-    console.log('  [3] Minimal configuration (no agents)\n');
+    console.log('  [2] Copy from another configuration');
+    console.log('  [3] Copy current configuration');
+    console.log('  [4] Minimal configuration (no agents)\n');
 
     const choice = await this.prompt('Select option: ');
     
     let config;
     let needsSetup = false;
+    let copiedFrom = null;
     
     switch (choice) {
       case '1':
         const defaultMeta = this.configManager.loadConfiguration('omo-default');
         config = JSON.parse(JSON.stringify(defaultMeta.config));
+        copiedFrom = 'omo-default';
         break;
-      case '2':
-        config = JSON.parse(JSON.stringify(this.config));
+      case '2': {
+        // Show list of configurations to copy from
+        console.clear();
+        console.log('\n--- Select Configuration to Copy ---\n');
+        
+        const configs = this.configManager.listConfigurations();
+        configs.forEach((configName, idx) => {
+          const metadata = this.configManager.loadConfiguration(configName);
+          const current = configName === this.configName ? ' [CURRENT]' : '';
+          console.log(`  ${idx + 1}. ${configName}${current}`);
+          console.log(`     ${metadata.description}\n`);
+        });
+        
+        console.log('[C] Cancel\n');
+        const copyChoice = await this.prompt('Select configuration: ');
+        
+        if (copyChoice.toLowerCase() === 'c') return;
+        
+        const copyIdx = parseInt(copyChoice) - 1;
+        if (copyIdx < 0 || copyIdx >= configs.length) {
+          console.log('Invalid selection');
+          await this.prompt('Press Enter to continue...');
+          return;
+        }
+        
+        const sourceConfig = configs[copyIdx];
+        const sourceMeta = this.configManager.loadConfiguration(sourceConfig);
+        config = JSON.parse(JSON.stringify(sourceMeta.config));
+        copiedFrom = sourceConfig;
         break;
+      }
       case '3':
+        config = JSON.parse(JSON.stringify(this.config));
+        copiedFrom = this.configName;
+        break;
+      case '4':
         config = { google_auth: false, agents: {}, mcps: {} };
         needsSetup = true;
         break;
@@ -852,6 +887,10 @@ class AgentConfigTool {
     try {
       this.configManager.saveConfiguration(name, description || 'New configuration', config);
       console.log(`\n✓ Created configuration: ${name}`);
+      
+      if (copiedFrom) {
+        console.log(`  Copied from: ${copiedFrom}`);
+      }
       
       if (needsSetup) {
         console.log('\nNote: This configuration has no agents.');
@@ -866,7 +905,7 @@ class AgentConfigTool {
         
         if (needsSetup) {
           console.log('\nTip: Use [A] Add new agent to configure agents for OmO.');
-        } else if (choice === '1') {
+        } else if (choice === '1' || choice === '2') {
           console.log('\nTip: Use [E] Edit agent model to customize agent models.');
         }
       }
