@@ -1,0 +1,517 @@
+#!/usr/bin/env node
+
+/**
+ * Oh My Opencode Agent Configuration Tool
+ * Interactive CLI for managing agent model assignments
+ */
+
+const fs = require('fs');
+const path = require('path');
+const readline = require('readline');
+const { execSync } = require('child_process');
+
+// Configuration paths
+const CONFIG_DIR = path.join(process.env.HOME, '.config', 'opencode');
+const CONFIG_FILE = path.join(CONFIG_DIR, 'oh-my-opencode.json');
+const BACKUP_DIR = path.join(CONFIG_DIR, 'backups');
+
+// Default agent configurations
+const DEFAULTS = {
+  "google_auth": false,
+  "agents": {
+    "oracle": {
+      "model": "opencode/gpt-5.2"
+    },
+    "Sisyphus": {
+      "model": "google/claude-opus-4-5-thinking"
+    },
+    "librarian": {
+      "model": "google/claude-sonnet-4-5"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "google/gemini-3-pro-high"
+    },
+    "document-writer": {
+      "model": "google/gemini-3-flash"
+    },
+    "multimodal-looker": {
+      "model": "google/gemini-3-flash"
+    }
+  },
+  "mcps": {
+    "websearch_exa": {
+      "url": "https://mcp.exa.ai/mcp?exaApiKey=4bfbfbd6-a907-4f05-98ca-cf6206af4eba&tools=web_search_exa,get_code_context_exa,crawling_exa,company_research_exa,linkedin_search_exa,deep_researcher_start,deep_researcher_check",
+      "type": "remote",
+      "enabled": true
+    },
+    "grep_app": {
+      "url": "https://mcp.grep.app",
+      "type": "remote"
+    }
+  }
+};
+
+// Agent characteristics for recommendations
+const AGENT_PROFILES = {
+  "oracle": {
+    description: "Strategic reasoning and complex problem solving",
+    preferred: ["reasoning", "large_context"],
+    minContext: 128000
+  },
+  "Sisyphus": {
+    description: "Extended thinking for complex multi-step tasks",
+    preferred: ["reasoning", "thinking", "large_context"],
+    minContext: 128000
+  },
+  "librarian": {
+    description: "Research, knowledge retrieval, and comprehension",
+    preferred: ["large_context", "fast"],
+    minContext: 128000
+  },
+  "frontend-ui-ux-engineer": {
+    description: "UI/UX work with visual understanding",
+    preferred: ["multimodal", "image_input"],
+    minContext: 64000
+  },
+  "document-writer": {
+    description: "Fast, efficient text generation and documentation",
+    preferred: ["fast", "text_output"],
+    minContext: 32000
+  },
+  "multimodal-looker": {
+    description: "Visual analysis and image/PDF understanding",
+    preferred: ["multimodal", "image_input", "pdf_input"],
+    minContext: 32000
+  }
+};
+
+class AgentConfigTool {
+  constructor() {
+    this.config = null;
+    this.models = null;
+    this.rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+  }
+
+  async loadConfig() {
+    try {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      this.config = JSON.parse(data);
+    } catch (error) {
+      console.error(`Error loading config: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  async loadModels() {
+    try {
+      console.log('Loading available models...');
+      const output = execSync('opencode models --verbose', { encoding: 'utf8' });
+      this.models = this.parseModels(output);
+      console.log(`Loaded ${this.models.length} models\n`);
+    } catch (error) {
+      console.error(`Error loading models: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  parseModels(output) {
+    const models = [];
+    const lines = output.split('\n');
+    let currentModel = null;
+    let jsonBuffer = '';
+    let inJson = false;
+
+    for (const line of lines) {
+      if (line.match(/^[a-z0-9-]+\/[a-z0-9-.:]+$/i)) {
+        currentModel = line.trim();
+        jsonBuffer = '';
+        inJson = false;
+      } else if (line.trim() === '{') {
+        inJson = true;
+        jsonBuffer = line;
+      } else if (inJson) {
+        jsonBuffer += '\n' + line;
+        if (line.trim() === '}') {
+          try {
+            const modelData = JSON.parse(jsonBuffer);
+            models.push({
+              id: currentModel,
+              ...modelData
+            });
+          } catch (e) {
+            // Skip malformed JSON
+          }
+          inJson = false;
+          jsonBuffer = '';
+        }
+      }
+    }
+
+    return models;
+  }
+
+  scoreModel(model, agentType) {
+    const profile = AGENT_PROFILES[agentType];
+    if (!profile) return 0;
+
+    let score = 0;
+
+    // Context window check
+    if (model.limit?.context >= profile.minContext) {
+      score += 10;
+    }
+
+    // Capability scoring
+    const caps = model.capabilities || {};
+    
+    for (const pref of profile.preferred) {
+      switch (pref) {
+        case "reasoning":
+          if (caps.reasoning) score += 15;
+          break;
+        case "thinking":
+          if (model.name?.toLowerCase().includes('thinking') || 
+              model.id?.toLowerCase().includes('thinking')) score += 10;
+          break;
+        case "large_context":
+          if (model.limit?.context >= 200000) score += 8;
+          break;
+        case "multimodal":
+          if (caps.input?.image || caps.input?.pdf) score += 15;
+          break;
+        case "image_input":
+          if (caps.input?.image) score += 12;
+          break;
+        case "pdf_input":
+          if (caps.input?.pdf) score += 8;
+          break;
+        case "fast":
+          if (model.name?.toLowerCase().includes('flash') || 
+              model.name?.toLowerCase().includes('fast')) score += 8;
+          break;
+        case "text_output":
+          if (caps.output?.text) score += 5;
+          break;
+      }
+    }
+
+    return score;
+  }
+
+  getRecommendedModels(agentType, limit = 5) {
+    const scored = this.models.map(model => ({
+      ...model,
+      score: this.scoreModel(model, agentType)
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
+  }
+
+  createBackup() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFile = path.join(BACKUP_DIR, `oh-my-opencode-${timestamp}.json`);
+    
+    try {
+      fs.copyFileSync(CONFIG_FILE, backupFile);
+      console.log(`✓ Backup created: ${backupFile}\n`);
+      return backupFile;
+    } catch (error) {
+      console.error(`Error creating backup: ${error.message}`);
+      throw error;
+    }
+  }
+
+  saveConfig() {
+    try {
+      this.createBackup();
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(this.config, null, 2));
+      console.log('✓ Configuration saved successfully\n');
+    } catch (error) {
+      console.error(`Error saving config: ${error.message}`);
+      throw error;
+    }
+  }
+
+  restoreDefaults() {
+    this.config = JSON.parse(JSON.stringify(DEFAULTS));
+    this.saveConfig();
+    console.log('✓ Restored default agent configuration\n');
+  }
+
+  formatModel(model) {
+    const ctx = model.limit?.context ? `${Math.floor(model.limit.context / 1000)}K` : '?';
+    const caps = [];
+    
+    if (model.capabilities?.reasoning) caps.push('R');
+    if (model.capabilities?.input?.image) caps.push('I');
+    if (model.capabilities?.input?.pdf) caps.push('P');
+    
+    const capsStr = caps.length > 0 ? `[${caps.join('')}]` : '';
+    return `${model.name || model.id} (${ctx}${capsStr})`;
+  }
+
+  async prompt(question) {
+    return new Promise(resolve => {
+      this.rl.question(question, answer => resolve(answer.trim()));
+    });
+  }
+
+  async selectModel(agentType, currentModel) {
+    console.clear();
+    const profile = AGENT_PROFILES[agentType];
+    
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`Select Model for: ${agentType}`);
+    console.log(`Description: ${profile?.description || 'Custom agent'}`);
+    console.log(`Current: ${currentModel}`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    const recommended = this.getRecommendedModels(agentType, 8);
+    
+    console.log('RECOMMENDED MODELS:\n');
+    recommended.forEach((model, idx) => {
+      const current = model.id === currentModel ? ' ⭐ (current)' : '';
+      console.log(`  ${idx + 1}. ${this.formatModel(model)}${current}`);
+    });
+
+    console.log('\n[S] Search all models');
+    console.log('[C] Cancel\n');
+
+    const choice = await this.prompt('Select option: ');
+
+    if (choice.toLowerCase() === 'c') {
+      return null;
+    }
+
+    if (choice.toLowerCase() === 's') {
+      return await this.searchModels(agentType, currentModel);
+    }
+
+    const idx = parseInt(choice) - 1;
+    if (idx >= 0 && idx < recommended.length) {
+      return recommended[idx].id;
+    }
+
+    console.log('Invalid choice');
+    await this.prompt('Press Enter to continue...');
+    return await this.selectModel(agentType, currentModel);
+  }
+
+  async searchModels(agentType, currentModel) {
+    console.clear();
+    console.log('\n--- Search Models ---\n');
+    
+    const query = await this.prompt('Search (provider/name or Enter for all): ');
+    const filtered = query 
+      ? this.models.filter(m => m.id.toLowerCase().includes(query.toLowerCase()) || 
+                                 m.name?.toLowerCase().includes(query.toLowerCase()))
+      : this.models;
+
+    if (filtered.length === 0) {
+      console.log('No models found');
+      await this.prompt('Press Enter to continue...');
+      return await this.selectModel(agentType, currentModel);
+    }
+
+    const perPage = 15;
+    let page = 0;
+
+    while (true) {
+      console.clear();
+      console.log(`\n--- All Models (${filtered.length} total) - Page ${page + 1}/${Math.ceil(filtered.length / perPage)} ---\n`);
+
+      const start = page * perPage;
+      const end = Math.min(start + perPage, filtered.length);
+
+      for (let i = start; i < end; i++) {
+        const current = filtered[i].id === currentModel ? ' ⭐' : '';
+        console.log(`  ${i + 1}. ${this.formatModel(filtered[i])}${current}`);
+      }
+
+      console.log('\n[N] Next page  [P] Previous page  [#] Select number  [C] Cancel\n');
+      const choice = await this.prompt('Select option: ');
+
+      if (choice.toLowerCase() === 'c') {
+        return await this.selectModel(agentType, currentModel);
+      }
+      if (choice.toLowerCase() === 'n' && end < filtered.length) {
+        page++;
+        continue;
+      }
+      if (choice.toLowerCase() === 'p' && page > 0) {
+        page--;
+        continue;
+      }
+
+      const idx = parseInt(choice) - 1;
+      if (idx >= 0 && idx < filtered.length) {
+        return filtered[idx].id;
+      }
+    }
+  }
+
+  async editAgent(agentName) {
+    const currentModel = this.config.agents[agentName]?.model || 'none';
+    const newModel = await this.selectModel(agentName, currentModel);
+
+    if (newModel && newModel !== currentModel) {
+      if (!this.config.agents[agentName]) {
+        this.config.agents[agentName] = {};
+      }
+      this.config.agents[agentName].model = newModel;
+      this.saveConfig();
+      console.log(`✓ Updated ${agentName} to ${newModel}`);
+      await this.prompt('Press Enter to continue...');
+    }
+  }
+
+  async addAgent() {
+    console.clear();
+    console.log('\n--- Add New Agent ---\n');
+    
+    const name = await this.prompt('Agent name: ');
+    if (!name) return;
+
+    if (this.config.agents[name]) {
+      console.log('Agent already exists');
+      await this.prompt('Press Enter to continue...');
+      return;
+    }
+
+    const model = await this.selectModel(name, null);
+    if (model) {
+      this.config.agents[name] = { model };
+      this.saveConfig();
+      console.log(`✓ Added agent ${name} with model ${model}`);
+      await this.prompt('Press Enter to continue...');
+    }
+  }
+
+  async deleteAgent(agentName) {
+    const confirm = await this.prompt(`Delete agent "${agentName}"? (yes/no): `);
+    if (confirm.toLowerCase() === 'yes') {
+      delete this.config.agents[agentName];
+      this.saveConfig();
+      console.log(`✓ Deleted agent ${agentName}`);
+      await this.prompt('Press Enter to continue...');
+    }
+  }
+
+  async mainMenu() {
+    while (true) {
+      console.clear();
+      console.log('\n' + '='.repeat(70));
+      console.log('Oh My Opencode - Agent Configuration');
+      console.log('='.repeat(70) + '\n');
+
+      console.log('CURRENT AGENTS:\n');
+      const agents = Object.entries(this.config.agents || {});
+      
+      if (agents.length === 0) {
+        console.log('  No agents configured\n');
+      } else {
+        agents.forEach(([name, config], idx) => {
+          console.log(`  ${idx + 1}. ${name.padEnd(30)} → ${config.model}`);
+        });
+      }
+
+      console.log('\nACTIONS:\n');
+      console.log('  [E] Edit agent model');
+      console.log('  [A] Add new agent');
+      console.log('  [D] Delete agent');
+      console.log('  [R] Restore defaults');
+      console.log('  [B] View backups');
+      console.log('  [Q] Quit\n');
+
+      const choice = await this.prompt('Select option: ');
+
+      switch (choice.toLowerCase()) {
+        case 'e': {
+          const agent = await this.prompt('Agent name: ');
+          if (this.config.agents[agent]) {
+            await this.editAgent(agent);
+          } else {
+            console.log('Agent not found');
+            await this.prompt('Press Enter to continue...');
+          }
+          break;
+        }
+        case 'a':
+          await this.addAgent();
+          break;
+        case 'd': {
+          const agent = await this.prompt('Agent name: ');
+          if (this.config.agents[agent]) {
+            await this.deleteAgent(agent);
+          } else {
+            console.log('Agent not found');
+            await this.prompt('Press Enter to continue...');
+          }
+          break;
+        }
+        case 'r': {
+          const confirm = await this.prompt('Restore all agents to defaults? (yes/no): ');
+          if (confirm.toLowerCase() === 'yes') {
+            this.restoreDefaults();
+            await this.prompt('Press Enter to continue...');
+          }
+          break;
+        }
+        case 'b':
+          await this.viewBackups();
+          break;
+        case 'q':
+          this.rl.close();
+          console.log('\nGoodbye!\n');
+          return;
+        default:
+          console.log('Invalid option');
+          await this.prompt('Press Enter to continue...');
+      }
+    }
+  }
+
+  async viewBackups() {
+    console.clear();
+    console.log('\n--- Configuration Backups ---\n');
+    
+    try {
+      const files = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.startsWith('oh-my-opencode-'))
+        .sort()
+        .reverse();
+
+      if (files.length === 0) {
+        console.log('No backups found');
+      } else {
+        files.slice(0, 10).forEach((file, idx) => {
+          const stats = fs.statSync(path.join(BACKUP_DIR, file));
+          console.log(`  ${idx + 1}. ${file} (${stats.size} bytes)`);
+        });
+      }
+    } catch (error) {
+      console.log(`Error reading backups: ${error.message}`);
+    }
+
+    await this.prompt('\nPress Enter to continue...');
+  }
+
+  async run() {
+    console.log('\nOh My Opencode Agent Configuration Tool\n');
+    
+    await this.loadConfig();
+    await this.loadModels();
+    await this.mainMenu();
+  }
+}
+
+// Run the tool
+const tool = new AgentConfigTool();
+tool.run().catch(error => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
