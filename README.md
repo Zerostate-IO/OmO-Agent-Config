@@ -1,20 +1,21 @@
 # OmO Agent Config
 
-> Interactive CLI tool for managing [Oh My OpenCode (Oh My Opencode)](https://github.com/code-yeongyu/oh-my-opencode) agent model assignments
+> Local web UI + CLI wrapper for managing [Oh My OpenCode (Oh My Opencode)](https://github.com/code-yeongyu/oh-my-opencode) agent model assignments
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 ## Overview
 
-OmO Agent Config is a user-friendly command-line tool that simplifies the process of configuring and managing agent model assignments in Oh My Opencode. No more manual JSON editing - use an interactive menu to browse, search, and assign models from a catalog of 200+ options.
+OmO Agent Config is a local web UI (served by a zero-dependency Node.js HTTP server) plus a small CLI wrapper. It helps you browse available models from `opencode models --verbose`, assign models to OmO agents, and manage named configuration profiles without hand-editing JSON.
 
 ### Key Features
 
 - **Named Configuration Profiles** - Create and switch between multiple agent configurations for different workflows
-- **CLI Quick Switch** - Fast config switching via command line: `opencode-agent-config -s work`
+- **Web UI (default)** - Browse models + edit agent assignments in a browser
+- **CLI Quick Switch** - Fast profile switching: `opencode-agent-config <profile>`
 - **Smart Model Recommendations** - Intelligent model suggestions based on agent type and capabilities
 - **Automatic Backups** - Every configuration change creates a timestamped backup
-- **Extensive Model Catalog** - Browse 200+ models from OpenCode, Google, Anthropic, xAI, OpenRouter
+- **Extensive Model Catalog** - Browse models from all configured providers
 - **Easy Restore** - One-click restore to default configuration
 - **Search & Filter** - Quickly find models by provider, name, or capabilities
 - **Agent Information** - View detailed information about Oh My Opencode's built-in agents
@@ -71,101 +72,34 @@ mkdir -p ~/.config/opencode/backups
 Quickly manage configurations from the command line:
 
 ```bash
-# Interactive mode (default)
+# Launch web UI (default)
 opencode-agent-config
 
-# Quick switch to a configuration
-opencode-agent-config -s work-config
-opencode-agent-config --switch omo-default
+# Quick switch to a profile
+opencode-agent-config omo-default
 
-# List all configurations
+# List profiles
 opencode-agent-config -l
 opencode-agent-config --list
-
-# Show current active configuration
-opencode-agent-config -c
-opencode-agent-config --current
 
 # Show help
 opencode-agent-config -h
 opencode-agent-config --help
 ```
 
-### Main Menu
+### Web UI
 
-Global scope example:
+Running `opencode-agent-config` (with no arguments) starts a local server and opens your browser.
 
-```
-======================================================================
-Oh My Opencode - Agent Configuration
-======================================================================
-
-Scope: Global
-Active Configuration: work-config
-Description: Work setup
-Modified: 12/23/2025
-
-CURRENT AGENTS:
-
-  1. oracle                    → opencode/gpt-5.2
-  2. Sisyphus                  → google/claude-opus-4-5-thinking
-  3. librarian                 → google/claude-sonnet-4-5
-  4. frontend-ui-ux-engineer   → google/gemini-3-pro-high
-  5. document-writer           → google/gemini-3-flash
-  6. multimodal-looker         → google/gemini-3-flash
-
-ACTIONS:
-
-  [E] Edit agent model
-  [D] Delete agent
-  [?] Show agent information
-  [P] Set preferred providers
-  [M] Manage configurations
-  [R] Restore defaults
-  [B] View backups
-  [Q] Quit
-
-Capabilities: [R]=Reasoning [I]=Image [P]=PDF
-Managing OmO built-in agents only (see [?] for custom agents)
-```
-
-### Workflow Examples
-
-#### Change an Agent's Model
-
-1. Press `E` to edit
-2. Enter the agent name (e.g., `oracle`)
-3. View recommended models ranked by suitability
-4. Select a model or press `S` to search all models
-5. Confirm your selection
-
-#### Show Agent Information
-
-1. Press `?` to view agent info
-2. See all Oh My Opencode built-in agents with:
-   - Description and purpose
-   - Preferred capabilities
-   - Minimum context requirements
-3. Note about custom agent creation (see `docs/CUSTOM-AGENTS.md`)
-
-#### Restore Default Configuration
-
-1. Press `R` to restore
-2. Confirm with `yes`
-3. All agents revert to default models
+- Models view: search/filter the model catalog, inspect capabilities/cost/context
+- Agents view: assign a model to each agent
+- Profiles: create/duplicate/import/export/activate named profiles
 
 ## Agent Profiles
 
 The tool includes intelligent recommendations for different agent types:
 
-| Agent | Purpose | Recommended Capabilities |
-|-------|---------|-------------------------|
-| **oracle** | Strategic reasoning & complex problem solving | Reasoning, Large context (128K+) |
-| **Sisyphus** | Extended thinking for multi-step tasks | Reasoning, Thinking models, Large context |
-| **librarian** | Research & knowledge retrieval | Large context, Fast performance |
-| **frontend-ui-ux-engineer** | UI/UX with visual understanding | Multimodal, Image input |
-| **document-writer** | Fast text generation | Speed, Text output |
-| **multimodal-looker** | Visual analysis & PDF understanding | Multimodal, Image/PDF input |
+The defaults track the Oh My Opencode v3.x agent lineup.
 
 ## Model Capabilities Legend
 
@@ -183,24 +117,6 @@ Example:
 3. GPT-5.2 (200K[R])
 ```
 
-## Project Mode (per-repo config)
-
-If you run the tool inside a Git repository and a project config exists at:
-
-```
-<repo-root>/.opencode/oh-my-opencode.json
-```
-
-the tool will open it in **Project scope** and show:
-- Repo name
-- Repo root path
-- The exact config file being edited
-
-To create a project config from one of your saved global configurations:
-- Main menu → **[M] Manage configurations** → **[C] Copy configuration into this project**
-
-Note: `.opencode/oh-my-opencode.jsonc` has higher priority in Oh My OpenCode. This tool currently edits project configs only in `.json`.
-
 ## Configuration Files
 
 ### Tool Location
@@ -217,7 +133,7 @@ Convenience link (recommended in PATH):
 
 ### Configuration File
 ```
-~/.config/opencode/oh-my-opencode.json
+~/.config/opencode/oh-my-opencode.jsonc
 ```
 
 This is the file Oh My Opencode reads for agent configuration.
@@ -311,7 +227,7 @@ Or run directly:
 
 ```bash
 cp ~/.config/opencode/backups/oh-my-opencode-2025-12-24-123000.json \
-   ~/.config/opencode/oh-my-opencode.json
+   ~/.config/opencode/oh-my-opencode.jsonc
 ```
 
 ## Contributing

@@ -29,7 +29,7 @@ See `docs/CUSTOM-AGENTS.md` for complete specification.
 4. Work with OpenCode team to fix plugin integration
 
 ### TUI Framework Upgrade
-**Status:** Deferred - current readline UI is sufficient
+**Status:** Obsolete - web UI replaced the legacy readline TUI
 **Decision:** Not needed; tool scope is narrow and workflow-focused
 
 ---

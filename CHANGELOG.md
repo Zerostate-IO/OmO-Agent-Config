@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-02-12
+
+### Added
+- **Web-first UI**: local HTTP server + static SPA for browsing models and editing agent assignments
+- **Model comparison**: compare a model across providers (value-ranked)
+- **Agent documentation**: fetch and display upstream agent docs (GitHub)
+- **Smoke runner**: `./run-tests.sh api|ui|all`
+
+### Changed
+- CLI now defaults to launching the web UI; CLI mode is primarily quick profile switching
+- Active config is `~/.config/opencode/oh-my-opencode.jsonc` (JSONC)
+- Core logic organized under `lib/core/` (models, agents, backups)
+
+### Fixed
+- Model/provider list now refreshes immediately after `~/.config/opencode/opencode.json` changes (cache invalidation)
+- More robust parsing of `opencode models --verbose` header lines (supports underscores/dots)
+
+### Removed
+- Legacy TUI implementation under `lib/ui/` (replaced by web UI)
+
 ## [0.5.0] - 2025-12-30
 
 ### Added

@@ -1,6 +1,6 @@
 # UX Analysis and Improvement Opportunities
 
-This document analyzes the current UI/UX and identifies areas for improvement.
+Note: this document was written for the legacy TUI/CLI UX. The current primary UI is the browser-based web UI; treat the details below as historical unless explicitly revalidated.
 
 ## Current Strengths
 

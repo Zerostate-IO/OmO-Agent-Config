@@ -1,31 +1,237 @@
 #!/usr/bin/env node
 
+/**
+ * OmO Agent Config - CLI Entry Point
+ * 
+ * Usage:
+ *   opencode-agent-config              # Launch web UI
+ *   opencode-agent-config <profile>    # Quick switch to profile
+ *   opencode-agent-config --list       # List all profiles
+ *   opencode-agent-config --help       # Show help
+ */
+
 const path = require('path');
 const fs = require('fs');
 
+// Determine lib path (local development vs installed)
 let libPath;
 const localLib = path.join(__dirname, '..', 'lib');
 const installedLib = path.join(process.env.HOME, '.config', 'opencode', 'lib');
 
-if (fs.existsSync(path.join(localLib, 'ui', 'menus.js'))) {
+if (fs.existsSync(path.join(localLib, 'server.js'))) {
   libPath = localLib;
 } else {
   libPath = installedLib;
 }
 
-const { AgentConfigTool } = require(path.join(libPath, 'ui', 'menus'));
+const { startServer, openBrowser } = require(path.join(libPath, 'server'));
+const { CONFIGS_DIR, CONFIG_FILE, ACTIVE_CONFIG_FILE } = require(path.join(libPath, 'constants'));
 
 const args = process.argv.slice(2);
-const tool = new AgentConfigTool();
 
-if (args.length > 0) {
-  tool.handleCliArgs(args).catch(error => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
-} else {
-  tool.run().catch(error => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-  });
+// Help text
+function showHelp() {
+  console.log(`
+OmO Agent Config - Manage Oh My Opencode agent model assignments
+
+Usage:
+    opencode-agent-config              Launch web UI for full configuration
+    opencode-agent-config <profile>    Quick switch to named profile
+    opencode-agent-config --list       List all available profiles
+    opencode-agent-config --help       Show this help message
+
+Examples:
+    opencode-agent-config                    # Open web UI in browser
+    opencode-agent-config work-credits       # Switch to 'work-credits' profile
+    opencode-agent-config --list             # Show: omo-default, work-credits, etc.
+
+Profiles are stored in: ~/.config/opencode/configs/
+Active config is at: ~/.config/opencode/oh-my-opencode.json
+`);
 }
+
+// List all profiles
+function listProfiles() {
+  try {
+    if (!fs.existsSync(CONFIGS_DIR)) {
+      console.log('No profiles found. Run opencode-agent-config to create one.');
+      return;
+    }
+
+    const files = fs.readdirSync(CONFIGS_DIR).filter(f => f.endsWith('.json'));
+    
+    if (files.length === 0) {
+      console.log('No profiles found. Run opencode-agent-config to create one.');
+      return;
+    }
+
+    // Get active profile
+    let activeProfile = null;
+    try {
+      if (fs.existsSync(ACTIVE_CONFIG_FILE)) {
+        const active = JSON.parse(fs.readFileSync(ACTIVE_CONFIG_FILE, 'utf8'));
+        activeProfile = active.active;
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    console.log('\nAvailable profiles:\n');
+    
+    for (const file of files) {
+      const profileName = file.replace('.json', '');
+      const profilePath = path.join(CONFIGS_DIR, file);
+      
+      try {
+        const data = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+        const isActive = profileName === activeProfile;
+        const agentCount = Object.keys(data.config?.agents || {}).length;
+        
+        const indicator = isActive ? '● ' : '○ ';
+        const description = data.description ? ` - ${data.description}` : '';
+        
+        console.log(`${indicator}${profileName}${description}`);
+        console.log(`   ${agentCount} agents | Modified: ${new Date(data.modified).toLocaleDateString()}`);
+        
+        if (isActive) {
+          // Show current model assignments
+          const agents = data.config?.agents || {};
+          const assignments = Object.entries(agents).slice(0, 3).map(([name, config]) => {
+            const model = config.model?.split('/').pop() || 'none';
+            return `${name}: ${model}`;
+          }).join(', ');
+          
+          if (assignments) {
+            console.log(`   Current: ${assignments}${Object.keys(agents).length > 3 ? '...' : ''}`);
+          }
+        }
+        
+        console.log('');
+      } catch (e) {
+        console.log(`○ ${profileName} (error reading profile)\n`);
+      }
+    }
+  } catch (error) {
+    console.error('Error listing profiles:', error.message);
+    process.exit(1);
+  }
+}
+
+// Quick switch to profile
+async function switchProfile(profileName) {
+  try {
+    const profilePath = path.join(CONFIGS_DIR, `${profileName}.json`);
+    
+    if (!fs.existsSync(profilePath)) {
+      console.error(`Error: Profile "${profileName}" not found.`);
+      console.error('\nRun "opencode-agent-config --list" to see available profiles.');
+      process.exit(1);
+    }
+
+    // Load profile
+    const profileData = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+    
+    // Create backup module path
+    const backupPath = path.join(libPath, 'core', 'backup.js');
+    let backupCreated = null;
+    
+    // Backup current config if exists
+    if (fs.existsSync(CONFIG_FILE)) {
+      try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const backupDir = path.join(process.env.HOME, '.config', 'opencode', 'backups');
+        
+        if (!fs.existsSync(backupDir)) {
+          fs.mkdirSync(backupDir, { recursive: true });
+        }
+        
+        const currentConfig = fs.readFileSync(CONFIG_FILE, 'utf8');
+        const backupFile = path.join(backupDir, `oh-my-opencode-${timestamp}.json`);
+        fs.writeFileSync(backupFile, currentConfig);
+        backupCreated = timestamp;
+      } catch (e) {
+        // Continue even if backup fails
+      }
+    }
+
+    // Write to active config
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(profileData.config, null, 2));
+    
+    // Update active profile tracker
+    fs.writeFileSync(ACTIVE_CONFIG_FILE, JSON.stringify({ active: profileName }, null, 2));
+
+    // Show summary
+    console.log(`✓ Switched to profile: ${profileName}`);
+    
+    const agents = profileData.config?.agents || {};
+    if (Object.keys(agents).length > 0) {
+      console.log('\nAgent assignments:');
+      for (const [agentName, config] of Object.entries(agents)) {
+        const model = config.model || 'none';
+        console.log(`  ${agentName.padEnd(20)} → ${model}`);
+      }
+    }
+    
+    if (backupCreated) {
+      console.log(`\nBackup created: ${backupCreated}`);
+    }
+    
+    console.log('\nConfiguration saved. Restart OpenCode to apply changes.');
+    
+  } catch (error) {
+    console.error(`Error switching to profile "${profileName}":`, error.message);
+    process.exit(1);
+  }
+}
+
+// Main entry point
+async function main() {
+  // No args - launch web UI
+  if (args.length === 0) {
+    try {
+      const { port } = await startServer();
+      const url = `http://localhost:${port}`;
+      
+      console.log('\n┌─────────────────────────────────────┐');
+      console.log('│   OmO Agent Config - Web UI         │');
+      console.log('│                                     │');
+      console.log(`│   Opening: ${url.padEnd(27)}│`);
+      console.log('│                                     │');
+      console.log('│   Press Ctrl+C to stop the server   │');
+      console.log('└─────────────────────────────────────┘\n');
+      
+      if (process.env.OMO_NO_OPEN !== '1' && process.env.CI !== 'true') {
+        openBrowser(url);
+      } else {
+        console.log(`\nBrowser auto-open disabled. URL: ${url}\n`);
+      }
+    } catch (error) {
+      console.error('Failed to start server:', error.message);
+      process.exit(1);
+    }
+    return;
+  }
+
+  const command = args[0];
+
+  // Help
+  if (command === '--help' || command === '-h') {
+    showHelp();
+    return;
+  }
+
+  // List profiles
+  if (command === '--list' || command === '-l') {
+    listProfiles();
+    return;
+  }
+
+  // Assume it's a profile name to switch to
+  await switchProfile(command);
+}
+
+// Run main
+main().catch(error => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

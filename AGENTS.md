@@ -1,63 +1,75 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2025-12-30
-**Commit:** 9c875b9
+**Generated:** 2026-02-12
+**Commit:** 8274c52
 **Branch:** main
 
 ## OVERVIEW
 
-Interactive CLI for managing Oh My Opencode agent model assignments. Modular Node.js application (~2100 lines) with TUI menus, 200+ model catalog, named config profiles, automatic backups.
+Local web UI + CLI wrapper for managing Oh My OpenCode / Oh My Opencode agent→model assignments and profiles. Node.js (CommonJS) backend with zero-dependency HTTP server + static SPA, backed by OpenCode CLI model discovery (`opencode models --verbose`).
 
 ## STRUCTURE
 
 ```
 OmO-Agent-Config/
 ├── bin/
-│   └── opencode-agent-config   # Entry point (thin wrapper)
+│   └── opencode-agent-config        # CLI entry: launch web UI or quick-switch profile
 ├── lib/
-│   ├── constants.js            # Colors, paths, DEFAULTS, AGENT_PROFILES
-│   ├── config-manager.js       # ConfigurationManager class
-│   ├── model-loader.js         # Model parsing, scoring, recommendations
-│   ├── validation.js           # Config validation, sync logic
-│   └── ui/
-│       ├── menus.js            # Main menu, agent config menu
-│       ├── config-menus.js     # Configuration management menus
-│       └── prompts.js          # Input helpers, formatModel
-├── install.sh                  # Copies bin/ and lib/ to ~/.config/opencode/
-├── docs/                       # User documentation
-├── VERSION                     # Manual version tracking
-└── CHANGELOG.md                # Release history
+│   ├── server.js                    # HTTP server + API routes + static file serving
+│   ├── constants.js                 # Paths, DEFAULTS, AGENT_PROFILES, JSONC helpers
+│   ├── config-manager.js            # Named profile CRUD + migrations
+│   ├── validation.js                # Config integrity checks + missing agent/MCP helpers
+│   ├── upstream.js                  # Fetch/cache upstream schema from GitHub
+│   ├── model-loader.js              # Scoring helpers (recommendations)
+│   ├── core/
+│   │   ├── models.js                # `opencode models --verbose` parsing + cache + ranking
+│   │   ├── agents.js                # Fetch/parse agent docs (GitHub) + cache
+│   │   └── backup.js                # Timestamped backups
+│   └── web/
+│       ├── index.html               # SPA shell
+│       ├── app.js                   # Frontend logic (filters, modals, profile mgmt)
+│       └── styles.css               # UI styling
+├── docs/                            # Design + UX + troubleshooting
+├── tests/                           # Playwright UI test(s)
+├── run-tests.sh                     # Manual API/UI smoke runner
+├── install.sh                       # Copies bin/ + lib/ → ~/.config/opencode/ and symlinks
+├── VERSION                          # Manual version tracking
+└── CHANGELOG.md                     # Release history
 ```
 
 ## WHERE TO LOOK
 
 | Task | Location | Notes |
 |------|----------|-------|
-| Add/modify features | `lib/` modules | Organized by responsibility |
-| Agent profiles/scoring | `lib/constants.js` | `AGENT_PROFILES` object |
-| Model recommendation logic | `lib/model-loader.js` | `scoreModel()`, capability detection |
-| Configuration management | `lib/config-manager.js` | CRUD for named configs |
-| Config validation/sync | `lib/validation.js` | Missing agent detection |
-| CLI argument handling | `bin/opencode-agent-config` | Entry point |
-| Main interactive loop | `lib/ui/menus.js` | TUI navigation |
-| Backup/restore | `lib/config-manager.js` | Automatic timestamped backups |
+| CLI entry / quick-switch | `bin/opencode-agent-config` | Also launches web UI by default |
+| Web UI backend | `lib/server.js` | Routes under `/api/*` + static `lib/web/*` |
+| Model discovery + provider list | `lib/core/models.js` | Runs `opencode models --verbose`, parses, caches, ranks |
+| Agent docs / new-agent discovery | `lib/core/agents.js` | Pulls upstream agent docs + caches locally |
+| Profile CRUD + envelopes | `lib/config-manager.js` | `{ name, description, created, modified, config }` |
+| Defaults + paths + JSONC parsing | `lib/constants.js` | Reads/writes `~/.config/opencode/oh-my-opencode.jsonc` |
+| Schema caching | `lib/upstream.js` | GitHub release tag → cached schema in `~/.config/opencode/cache/` |
+| Frontend behavior | `lib/web/app.js` | State, filtering, model picker UX |
+| Smoke verification | `run-tests.sh` | Curl API checks + Playwright UI run |
 
 ## CODE MAP
 
 | Symbol | Type | Location | Role |
 |--------|------|----------|------|
-| `AgentConfigTool` | Class | `lib/ui/menus.js` | Main application class - TUI orchestration |
-| `ConfigurationManager` | Class | `lib/config-manager.js` | Named config profiles CRUD, migration |
-| `AGENT_PROFILES` | Object | `lib/constants.js` | 7 built-in agent definitions with scoring |
-| `DEFAULTS` | Object | `lib/constants.js` | Default agent-to-model mappings |
-| `scoreModel()` | Function | `lib/model-loader.js` | Ranks models by agent capability match |
-| `validateConfig()` | Function | `lib/validation.js` | Detects missing agents/MCPs |
+| `startServer()` | function | `lib/server.js` | Starts local HTTP server + binds port |
+| `handleRequest()` | function | `lib/server.js` | Router for API + static files |
+| `getModels()` | function | `lib/core/models.js` | Cache + fetch model catalog |
+| `parseModels()` | function | `lib/core/models.js` | Brace-count parser for `opencode models --verbose` |
+| `rankProvider()` | function | `lib/core/models.js` | Provider tier + cost/context ranking |
+| `getAllAgentDocumentation()` | function | `lib/core/agents.js` | Fetch + parse agent docs |
+| `ConfigurationManager` | class | `lib/config-manager.js` | Profiles CRUD + migrations |
+| `AGENT_PROFILES` | object | `lib/constants.js` | Agent capability requirements used for scoring |
+| `checkAndUpdateOhMyOpenCodeSchema()` | function | `lib/upstream.js` | Updates cached upstream schema |
 
 ### Key Paths
 
 ```
 ~/.config/opencode/
-├── oh-my-opencode.json      # Active config (what OmO reads)
+├── oh-my-opencode.jsonc     # Active config (what OmO reads)
 ├── active-config.json       # Tracks which named config is active
 ├── configs/                 # Named configuration profiles
 │   ├── omo-default.json
@@ -72,7 +84,7 @@ OmO-Agent-Config/
 
 ## CONVENTIONS
 
-- **No package.json**: Uses only Node.js built-ins (fs, path, readline, child_process)
+- Runtime uses **Node.js built-ins only** (no production deps); repo may include dev tooling (Playwright)
 - **Modular architecture**: Split into logical modules under `lib/`
 - **Relative requires**: Modules use relative paths, no npm dependencies
 - **Manual versioning**: Update `VERSION` file + `CHANGELOG.md` for releases
@@ -81,8 +93,10 @@ OmO-Agent-Config/
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
-- **Don't add package.json**: Intentionally zero npm dependencies, Node.js built-ins only
-- **Don't create agents without system prompts**: Tool manages OmO built-in agents only - user-created agents without prompts won't work (see `docs/CUSTOM-AGENTS.md`)
+- Don’t add runtime deps (keep Node built-ins only)
+- Don’t rely on removed `lib/ui/*` TUI paths (web UI replaced it)
+- Don’t use `sudo` for install/run (see `docs/TROUBLESHOOTING.md`)
+- Don’t remove/modify the `mcps` section when editing configs (see `docs/TROUBLESHOOTING.md`)
 
 ## UNIQUE STYLES
 
@@ -97,24 +111,22 @@ OmO-Agent-Config/
 # Install
 ./install.sh
 
-# Interactive mode
+# Launch web UI
 opencode-agent-config
 
 # CLI quick operations
-opencode-agent-config -s <config-name>  # Switch config
-opencode-agent-config -l                # List configs
-opencode-agent-config -c                # Show current
-opencode-agent-config -h                # Help
+opencode-agent-config -l                # List profiles
+opencode-agent-config --help            # Help
+opencode-agent-config <profile>         # Quick switch
+
+# Smoke checks
+./run-tests.sh api
+./run-tests.sh ui
 ```
 
 ## NOTES
 
-- **Model loading**: Runs `opencode models --verbose`, parses nested JSON with brace counting; surfaces stderr on failure
-- **Global vs project scope**: edits global `~/.config/opencode/oh-my-opencode.json` or project `.opencode/oh-my-opencode.json` (git root)
-- **Upstream sync**: fetches Oh My OpenCode schema at startup (latest release tag) into `~/.config/opencode/cache/`
-- **Secrets portability**: supports `{env:...}` and `{file:...}` placeholders; can migrate MCP secrets into `~/.config/opencode/secrets/`
-- **Built-in agents managed**: oracle, Sisyphus, librarian, explore, frontend-ui-ux-engineer, document-writer, multimodal-looker
-- **First-run migration**: Auto-creates `omo-default` and migrates existing config to `user-config`
-- **Backup before every save**: Creates timestamped backup in `~/.config/opencode/backups/`
-- **No tests**: Manual testing only, no automated test suite
-- **Future**: Custom agent support planned for v0.4.0+ (see `docs/CUSTOM-AGENTS.md`)
+- **Model loading**: `opencode models --verbose` output is parsed via brace counting; results cached in `~/.config/opencode/cache/models-cache.json`
+- **Cache gotcha**: provider/model changes in `~/.config/opencode/opencode.json` should trigger a refresh (cache invalidates when that file mtime is newer than cache timestamp)
+- **Config file edited**: `~/.config/opencode/oh-my-opencode.jsonc` (JSONC supported)
+- **No `.github/workflows/`**: local/manual verification (see `run-tests.sh`)

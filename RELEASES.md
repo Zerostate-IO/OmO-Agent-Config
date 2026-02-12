@@ -85,3 +85,7 @@ Go to GitHub > Releases > Create new release
 
 - **v0.0.2** (2025-12-24) - Provider filtering fixes
 - **v0.0.1** (Initial) - First working version with basic functionality
+
+## Recent Releases
+
+- **v0.6.0** (2026-02-12) - Web UI + refreshed model discovery

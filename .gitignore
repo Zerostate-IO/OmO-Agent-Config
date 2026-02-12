@@ -21,6 +21,7 @@ Screenshot*.png
 # Test files
 test-config.json
 *.test.json
+test-results/
 
 # Backup files
 *.bak
@@ -30,3 +31,12 @@ test-config.json
 tmp/
 temp/
 *.tmp
+
+# Local OpenCode project artifacts (track skills only)
+.opencode/*
+!.opencode/.gitignore
+!.opencode/skill/
+!.opencode/skill/**
+
+# Local scratch
+tmp_prompts.js

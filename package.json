@@ -1,0 +1,28 @@
+{
+  "name": "omo-agent-config",
+  "version": "1.0.0",
+  "description": "> Interactive CLI tool for managing [Oh My OpenCode (Oh My Opencode)](https://github.com/code-yeongyu/oh-my-opencode) agent model assignments",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zerostate-IO/OmO-Agent-Config.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Zerostate-IO/OmO-Agent-Config/issues"
+  },
+  "homepage": "https://github.com/Zerostate-IO/OmO-Agent-Config#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

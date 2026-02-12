@@ -62,7 +62,7 @@ A complete agent needs (per OpenCode docs):
 ### 2. System Prompt File Management
 
 Agents can be defined via:
-- **JSON config** (in `opencode.json` or `oh-my-opencode.json`)
+- **JSON config** (in `opencode.json` or `oh-my-opencode.jsonc`)
 - **Markdown files** in `~/.config/opencode/agent/` or `.opencode/agent/`
 
 For custom agents, we should:
@@ -104,7 +104,7 @@ You are a specialized agent focused on [specific task].
 - [Guideline 2]
 ```
 
-### 4. UI Flow for Custom Agent Creation
+### 4. Planned UI Flow for Custom Agent Creation (not implemented)
 
 ```
 [A] Add new agent
@@ -143,7 +143,7 @@ Preview agent configuration
 Confirm creation
   ↓
 ✓ Created custom agent "my-debugger"
-  - Config: ~/.config/opencode/oh-my-opencode.json
+  - Config: ~/.config/opencode/oh-my-opencode.jsonc
   - Prompt: ~/.config/opencode/agent/custom/my-debugger.md
 ```
 
