@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-02-12
+
+### Added
+- Pending model change visibility in Agents view, including card highlighting and per-agent from -> to model indicators before save.
+- Styled "Review Model Changes" modal for save/apply showing all agent model transitions.
+- Richer agent context in agent cards and detail modals, including best-utilization guidance and prompt-derived role/behavior excerpts.
+- Explicit release discipline policy in project docs requiring version bump, changelog update, tagging, push, and GitHub release for bug fixes/features.
+
+### Changed
+- Save-state tracking now compares against last saved config baseline so unsaved state and pending markers reflect real diffs.
+- Save flow now confirms/apply operations through in-app modal actions instead of browser confirm dialogs.
+
 ## [0.6.0] - 2026-02-12
 
 ### Added
