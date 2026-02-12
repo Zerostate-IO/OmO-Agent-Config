@@ -234,6 +234,12 @@ cp ~/.config/opencode/backups/oh-my-opencode-2025-12-24-123000.json \
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+Release policy for merged changes:
+
+- Bug fixes and feature additions must be followed by a release version bump and tag.
+- Update `VERSION` + `CHANGELOG.md`, then push the release tag and publish a GitHub Release.
+- See `RELEASES.md` for the full checklist and semver rules.
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)

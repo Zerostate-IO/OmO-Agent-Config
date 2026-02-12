@@ -1,5 +1,13 @@
 # Release Process
 
+## Release Discipline (Required)
+
+For this repository, every merged bug fix or feature change must ship with a versioned release.
+
+- Bug fix -> bump PATCH, update `CHANGELOG.md`, create/push tag, publish GitHub release.
+- Feature add -> bump MINOR, update `CHANGELOG.md`, create/push tag, publish GitHub release.
+- If a PR is merged without release artifacts, follow up immediately with a release-only PR.
+
 ## Version Numbering
 
 This project follows semantic versioning: `MAJOR.MINOR.PATCH`
@@ -29,6 +37,15 @@ This project follows semantic versioning: `MAJOR.MINOR.PATCH`
 See `VERSION` file for the current version.
 
 ## Creating a Release
+
+### Mandatory Checklist
+
+- [ ] Update `VERSION` using semantic version rules.
+- [ ] Add release notes to `CHANGELOG.md`.
+- [ ] Commit release files (`VERSION`, `CHANGELOG.md`, and any related docs).
+- [ ] Create annotated tag (`vX.Y.Z`).
+- [ ] Push branch and tag to GitHub.
+- [ ] Create GitHub Release for that tag.
 
 ### 1. Update VERSION file
 
