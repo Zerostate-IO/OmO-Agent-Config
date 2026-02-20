@@ -177,4 +177,173 @@ test.describe('OmO Agent Config UI', () => {
     // Take screenshot
     await page.screenshot({ path: 'test-results/undo-clears-pending.png' });
   });
+
+  test('Discouraged models show warning badge', async ({ page, context }) => {
+    // Create a new page to avoid cached data from beforeEach
+    const testPage = await context.newPage();
+    
+    // Intercept models API to inject test model
+    await testPage.route('**/*', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/api/models')) {
+        const response = await route.fetch();
+        const data = await response.json();
+        
+        // Inject a test model into the models list
+        data.models.unshift({
+          id: 'test/discouraged-model',
+          name: 'Test Discouraged Model',
+          provider: 'test',
+          providerID: 'test',
+          context: 128000,
+          contextDisplay: '128K',
+          capabilities: {},
+          badges: [],
+          costDisplay: '$'
+        });
+        data.total = data.models.length;
+        
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(data)
+        });
+      } else if (url.includes('/api/agents')) {
+        const response = await route.fetch();
+        const data = await response.json();
+        
+        // Find sisyphus agent and add discouraged model to recommendations
+        const sisyphusAgent = data.agents.find(a => a.name === 'sisyphus');
+        if (sisyphusAgent) {
+          if (!sisyphusAgent.recommendedModels) {
+            sisyphusAgent.recommendedModels = [];
+          }
+          sisyphusAgent.recommendedModels.unshift({
+            id: 'test/discouraged-model',
+            name: 'Test Discouraged Model',
+            score: 50,
+            provider: 'test',
+            provenance: 'heuristic',
+            discouragedReason: 'Test: This model is discouraged for testing purposes',
+            discouragedSeverity: 'avoid'
+          });
+        }
+        
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(data)
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    // Navigate and refresh to trigger intercepted requests
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    await testPage.click('#refresh-btn');
+    await testPage.waitForTimeout(2000);
+
+    // Open model selector for sisyphus agent
+    await testPage.locator('button[onclick="changeAgentModel(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Assert warning badge is visible
+    const warningBadge = await testPage.locator('.warning-badge-avoid').first();
+    await expect(warningBadge).toBeVisible();
+    
+    // Verify badge has discouraged reason in title
+    const titleAttr = await warningBadge.getAttribute('title');
+    expect(titleAttr).toContain('discouraged');
+    
+    // Take screenshot for verification
+    await testPage.screenshot({ path: 'test-results/discouraged-model-warning-badge.png' });
+    await testPage.close();
+  });
+
+  test('Can open Profile Management and see Backups section', async ({ page }) => {
+    // Click manage profiles button
+    await page.click('#manage-profiles-btn');
+    
+    // Wait for modal
+    await page.waitForTimeout(500);
+    
+    // Check modal is open
+    const modal = await page.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    // Check modal title is "Profile Management"
+    const modalTitle = await page.locator('#modal-title');
+    await expect(modalTitle).toHaveText('Profile Management');
+    
+    // Check Backups section heading exists
+    const backupsHeading = await page.locator('h4:has-text("Configuration Backups")');
+    await expect(backupsHeading).toBeVisible();
+    
+    // Check backups list container exists
+    const backupsContainer = await page.locator('#backups-list-container');
+    await expect(backupsContainer).toBeVisible();
+    
+    // Check Purge button exists
+    const purgeBtn = await page.locator('button:has-text("Purge Old Backups")');
+    await expect(purgeBtn).toBeVisible();
+    
+    // Take screenshot
+    await page.screenshot({ path: 'test-results/profile-management-backups.png' });
+  });
+
+  test('Purge preview shows confirmation dialog', async ({ page }) => {
+    // Open Profile Management
+    await page.click('#manage-profiles-btn');
+    await page.waitForTimeout(500);
+    
+    // Wait for backups to load
+    await page.waitForTimeout(1000);
+    
+    // Click Purge button
+    await page.click('button:has-text("Purge Old Backups")');
+    
+    // Wait for purge preview modal
+    await page.waitForTimeout(500);
+    
+    // Check purge modal title
+    const modalTitle = await page.locator('#modal-title');
+    await expect(modalTitle).toHaveText('Purge Backups');
+    
+    // Check purge preview content exists
+    const purgePreview = await page.locator('.purge-preview');
+    await expect(purgePreview).toBeVisible();
+    
+    // Check preview heading
+    const previewHeading = await page.locator('h4:has-text("Purge Old Backups")');
+    await expect(previewHeading).toBeVisible();
+    
+    // Either "No backups to purge" message OR confirmation buttons exist
+    const noBackupsMessage = page.locator('text=No backups to purge');
+    const confirmBtn = page.locator('button:has-text("Confirm Purge")');
+    const cancelBtn = page.locator('button:has-text("Cancel")');
+    
+    // At least one of these states should be true
+    const hasNoBackupsMsg = await noBackupsMessage.isVisible().catch(() => false);
+    const hasConfirmBtn = await confirmBtn.isVisible().catch(() => false);
+    const hasCancelBtn = await cancelBtn.isVisible().catch(() => false);
+    
+    expect(hasNoBackupsMsg || hasConfirmBtn || hasCancelBtn).toBeTruthy();
+    
+    // If there are backups to purge, test the cancel flow
+    if (hasConfirmBtn && hasCancelBtn) {
+      // Click Cancel to dismiss
+      await cancelBtn.click();
+      await page.waitForTimeout(300);
+      
+      // Modal should close or return to Profile Management
+      const currentTitle = await modalTitle.textContent();
+      expect(currentTitle === 'Profile Management' || await modal.isHidden().catch(() => false)).toBeTruthy();
+    }
+    
+    // Take screenshot
+    await page.screenshot({ path: 'test-results/purge-preview-dialog.png' });
+  });
 });
