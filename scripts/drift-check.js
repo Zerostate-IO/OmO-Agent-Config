@@ -4,7 +4,12 @@
  * Upstream Drift Detection Script
  * Compares local model-requirements.js against upstream Oh My Opencode source
  * 
- * Usage: node scripts/drift-check.js [--exit-on-drift] [--json]
+ * Usage: node scripts/drift-check.js [--exit-on-drift] [--json] [--refresh] [--pin]
+ * 
+ * Modes:
+ *   check (default)   - Read-only comparison of local vs upstream
+ *   --refresh         - Update cached snapshot and compare
+ *   --pin             - Save current upstream SHA to .omo-upstream-sha
  * 
  * Exit codes:
  *   0 - No drift detected (or network unavailable, graceful)
@@ -15,11 +20,19 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // Configuration
-const UPSTREAM_URL = 'https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/shared/model-requirements.ts';
+const UPSTREAM = {
+  repo: 'code-yeongyu/oh-my-opencode',
+  branch: 'dev',
+  modelRequirementsUrl: 'https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/shared/model-requirements.ts',
+  commitsApiUrl: 'https://api.github.com/repos/code-yeongyu/oh-my-opencode/commits/dev'
+};
+
 const LOCAL_FILE = path.join(__dirname, '..', 'lib', 'core', 'model-requirements.js');
 const PINNED_SHA_FILE = path.join(__dirname, '..', '.omo-upstream-sha');
+const CACHE_FILE = path.join(os.homedir(), '.config', 'opencode', 'cache', 'upstream-snapshot.json');
 
 // ANSI colors for output
 const colors = {
@@ -30,6 +43,187 @@ const colors = {
   cyan: '\x1b[36m',
   gray: '\x1b[90m',
 };
+
+// ============================================================================
+// SNAPSHOT GENERATION (from upstream-snapshot.js)
+// ============================================================================
+
+/**
+ * Fetch JSON from URL
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Request options
+ * @returns {Promise<Object>} Parsed JSON
+ */
+async function fetchJson(url, options = {}) {
+  const data = await fetchHttps(url, options);
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    throw new Error(`Failed to parse JSON from ${url}: ${e.message}`);
+  }
+}
+
+/**
+ * Get latest commit SHA from upstream
+ * @returns {Promise<string|null>} Commit SHA or null
+ */
+async function getCommitSha() {
+  try {
+    const commits = await fetchJson(UPSTREAM.commitsApiUrl, {
+      headers: {
+        'User-Agent': 'opencode-agent-config',
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    return commits.sha || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Parse TypeScript model requirements from upstream source
+ * @param {string} content - TypeScript file content
+ * @returns {Object} Parsed requirements
+ */
+function parseModelRequirements(content) {
+  const result = {
+    agents: {},
+    categories: {}
+  };
+
+  // Extract AGENT_MODEL_REQUIREMENTS - handles TypeScript with type annotations
+  const agentMatch = content.match(/export\s+const\s+AGENT_MODEL_REQUIREMENTS(?:\s*:\s*[^=]+)?\s*=\s*({[\s\S]*?})\s*;?\s*(?:export|const|CATEGORY|$)/);
+  if (agentMatch) {
+    try {
+      // Convert TypeScript object syntax to JSON-compatible format
+      const cleaned = agentMatch[1]
+        .replace(/\/\/.*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/'/g, '"')
+        .replace(/(\w+):/g, '"$1":');
+      
+      result.agents = JSON.parse(cleaned);
+    } catch (e) {
+      throw new Error(`Failed to parse AGENT_MODEL_REQUIREMENTS: ${e.message}`);
+    }
+  }
+
+  // Extract CATEGORY_MODEL_REQUIREMENTS - handles TypeScript with type annotations
+  const categoryMatch = content.match(/export\s+const\s+CATEGORY_MODEL_REQUIREMENTS(?:\s*:\s*[^=]+)?\s*=\s*({[\s\S]*?})\s*;?\s*(?:export|const|$)/);
+  if (categoryMatch) {
+    try {
+      const cleaned = categoryMatch[1]
+        .replace(/\/\/.*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/,\s*([}\]])/g, '$1')
+        .replace(/'/g, '"')
+        .replace(/(\w+):/g, '"$1":');
+      
+      result.categories = JSON.parse(cleaned);
+    } catch (e) {
+      throw new Error(`Failed to parse CATEGORY_MODEL_REQUIREMENTS: ${e.message}`);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Generate upstream snapshot
+ * @param {Object} options - Options
+ * @returns {Promise<Object>} Snapshot object
+ */
+async function generateSnapshot(options = {}) {
+  const { verbose = false } = options;
+  
+  if (verbose) {
+    console.log(`${colors.cyan}🔍 Fetching upstream snapshot...${colors.reset}`);
+  }
+  
+  // Fetch commit SHA
+  const commitSha = await getCommitSha();
+  
+  if (verbose) {
+    console.log(`${colors.gray}   Commit: ${commitSha || 'unknown'}${colors.reset}`);
+  }
+  
+  // Fetch model requirements
+  if (verbose) {
+    console.log(`${colors.gray}   Fetching model-requirements.ts...${colors.reset}`);
+  }
+  
+  const modelRequirementsContent = await fetchHttps(UPSTREAM.modelRequirementsUrl);
+  const modelRequirements = parseModelRequirements(modelRequirementsContent);
+  
+  if (verbose) {
+    console.log(`${colors.gray}   Found ${Object.keys(modelRequirements.agents).length} agents, ${Object.keys(modelRequirements.categories).length} categories${colors.reset}`);
+  }
+  
+  // Build normalized snapshot
+  const snapshot = {
+    version: '1.0.0',
+    generatedAt: new Date().toISOString(),
+    sourceRef: {
+      repo: UPSTREAM.repo,
+      branch: UPSTREAM.branch,
+      commitSha
+    },
+    agents: modelRequirements.agents,
+    categories: modelRequirements.categories
+  };
+  
+  if (verbose) {
+    console.log(`${colors.green}✅ Snapshot generated${colors.reset}`);
+  }
+  
+  return snapshot;
+}
+
+/**
+ * Save snapshot to cache
+ * @param {Object} snapshot - Snapshot to cache
+ */
+function saveSnapshotToCache(snapshot) {
+  try {
+    const cacheDir = path.dirname(CACHE_FILE);
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(snapshot, null, 2));
+  } catch (e) {
+    // Silently fail on cache write errors
+  }
+}
+
+/**
+ * Load snapshot from cache
+ * @returns {Object|null} Cached snapshot or null
+ */
+function loadSnapshotFromCache() {
+  try {
+    if (!fs.existsSync(CACHE_FILE)) return null;
+    const data = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Pin current upstream SHA to file
+ * @param {string} sha - Commit SHA to pin
+ * @returns {boolean} Success
+ */
+function pinSha(sha) {
+  try {
+    fs.writeFileSync(PINNED_SHA_FILE, sha);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 /**
  * Fetch content from HTTPS URL
@@ -394,6 +588,53 @@ function getPinnedSha() {
 }
 
 /**
+ * Build action required list from drift results
+ * @param {Object} drift - Drift comparison results
+ * @returns {Array<string>} List of actionable items
+ */
+function buildActionRequired(drift) {
+  const actions = [];
+  
+  if (drift.newAgents.length > 0) {
+    for (const agent of drift.newAgents) {
+      actions.push(`add agent ${agent}`);
+    }
+  }
+  
+  if (drift.missingAgents.length > 0) {
+    for (const agent of drift.missingAgents) {
+      actions.push(`remove agent ${agent} (no longer in upstream)`);
+    }
+  }
+  
+  if (drift.changedAgents.length > 0) {
+    for (const change of drift.changedAgents) {
+      actions.push(`update chain for agent ${change.name}`);
+    }
+  }
+  
+  if (drift.newCategories.length > 0) {
+    for (const cat of drift.newCategories) {
+      actions.push(`add category ${cat}`);
+    }
+  }
+  
+  if (drift.missingCategories.length > 0) {
+    for (const cat of drift.missingCategories) {
+      actions.push(`remove category ${cat} (no longer in upstream)`);
+    }
+  }
+  
+  if (drift.changedCategories.length > 0) {
+    for (const change of drift.changedCategories) {
+      actions.push(`update chain for category ${change.name}`);
+    }
+  }
+  
+  return actions;
+}
+
+/**
  * Main function
  */
 async function main() {
@@ -401,6 +642,47 @@ async function main() {
   const exitOnDrift = args.includes('--exit-on-drift');
   const verbose = args.includes('--verbose') || args.includes('-v');
   const jsonOutput = args.includes('--json');
+  const refreshMode = args.includes('--refresh');
+  const pinMode = args.includes('--pin');
+
+  // Handle --pin mode first (just pin the SHA and exit)
+  if (pinMode) {
+    try {
+      const currentSha = await getCommitSha();
+      if (!currentSha) {
+        if (jsonOutput) {
+          console.log(JSON.stringify({ error: 'Could not fetch current upstream SHA' }, null, 2));
+        } else {
+          console.error(`${colors.red}❌ Could not fetch current upstream SHA${colors.reset}`);
+        }
+        process.exit(2);
+      }
+      
+      if (pinSha(currentSha)) {
+        if (jsonOutput) {
+          console.log(JSON.stringify({ pinnedSha: currentSha, success: true }, null, 2));
+        } else {
+          console.log(`${colors.green}✅ Pinned upstream SHA: ${currentSha}${colors.reset}`);
+          console.log(`${colors.gray}   Written to: ${PINNED_SHA_FILE}${colors.reset}`);
+        }
+        process.exit(0);
+      } else {
+        if (jsonOutput) {
+          console.log(JSON.stringify({ error: 'Failed to write pinned SHA file' }, null, 2));
+        } else {
+          console.error(`${colors.red}❌ Failed to write pinned SHA file${colors.reset}`);
+        }
+        process.exit(2);
+      }
+    } catch (e) {
+      if (jsonOutput) {
+        console.log(JSON.stringify({ error: e.message }, null, 2));
+      } else {
+        console.error(`${colors.red}❌ Error pinning SHA: ${e.message}${colors.reset}`);
+      }
+      process.exit(2);
+    }
+  }
 
   // When JSON output is requested, suppress all console output except the final JSON
   const output = {
@@ -411,13 +693,20 @@ async function main() {
     newCategories: [],
     missingCategories: [],
     changedCategories: [],
-    pinnedSha: null
+    pinnedSha: null,
+    currentSha: null,
+    actionRequired: []
   };
 
   if (!jsonOutput) {
     console.log(`${colors.cyan}🔍 OmO Upstream Drift Check${colors.reset}`);
     console.log(`${colors.gray}   Local: ${LOCAL_FILE}${colors.reset}`);
-    console.log(`${colors.gray}   Upstream: ${UPSTREAM_URL}${colors.reset}`);
+    console.log(`${colors.gray}   Upstream: ${UPSTREAM.modelRequirementsUrl}${colors.reset}`);
+    if (refreshMode) {
+      console.log(`${colors.gray}   Mode: refresh (will update cache)${colors.reset}`);
+    } else {
+      console.log(`${colors.gray}   Mode: check (read-only)${colors.reset}`);
+    }
     console.log('');
   }
 
@@ -441,42 +730,72 @@ async function main() {
     console.log('');
   }
 
-  // Fetch upstream content
-  let upstreamContent;
-  try {
-    if (!jsonOutput && verbose) {
-      console.log(`${colors.gray}Fetching upstream...${colors.reset}`);
-    }
-    upstreamContent = await fetchHttps(UPSTREAM_URL);
-  } catch (e) {
-    if (jsonOutput) {
-      // For JSON output on network failure, return empty result with hasDrift=false
-      // This maintains backward compatibility for scripts that check hasDrift
-      output.networkError = e.message;
-      console.log(JSON.stringify(output, null, 2));
-    } else {
-      console.warn(`${colors.yellow}⚠ Network unavailable or fetch failed: ${e.message}${colors.reset}`);
-      console.log(`${colors.gray}   Skipping drift check (graceful fallback)${colors.reset}`);
-    }
-    process.exit(0); // Graceful exit on network failure
-  }
-
-  // Parse both sources
   let upstreamReqs;
-  let localReqs;
+  let currentSha = null;
 
-  try {
-    upstreamReqs = parseUpstreamRequirements(upstreamContent);
-  } catch (e) {
-    if (jsonOutput) {
-      output.error = `Failed to parse upstream requirements: ${e.message}`;
-      console.log(JSON.stringify(output, null, 2));
-    } else {
-      console.error(`${colors.red}❌ Failed to parse upstream requirements: ${e.message}${colors.reset}`);
+  // In refresh mode, generate new snapshot and save to cache
+  if (refreshMode) {
+    try {
+      const snapshot = await generateSnapshot({ verbose: !jsonOutput && verbose });
+      saveSnapshotToCache(snapshot);
+      currentSha = snapshot.sourceRef.commitSha;
+      upstreamReqs = {
+        agents: snapshot.agents,
+        categories: snapshot.categories
+      };
+      if (!jsonOutput) {
+        console.log(`${colors.green}✅ Cached snapshot updated${colors.reset}`);
+        console.log('');
+      }
+    } catch (e) {
+      if (jsonOutput) {
+        output.error = `Failed to refresh snapshot: ${e.message}`;
+        console.log(JSON.stringify(output, null, 2));
+      } else {
+        console.error(`${colors.red}❌ Failed to refresh snapshot: ${e.message}${colors.reset}`);
+      }
+      process.exit(2);
     }
-    process.exit(2);
+  } else {
+    // Check mode: try cache first, then fetch
+    const cached = loadSnapshotFromCache();
+    if (cached) {
+      if (!jsonOutput && verbose) {
+        console.log(`${colors.gray}Using cached snapshot from ${cached.generatedAt}${colors.reset}`);
+      }
+      currentSha = cached.sourceRef?.commitSha || null;
+      upstreamReqs = {
+        agents: cached.agents,
+        categories: cached.categories
+      };
+    } else {
+      // No cache, fetch fresh
+      try {
+        if (!jsonOutput && verbose) {
+          console.log(`${colors.gray}Fetching upstream...${colors.reset}`);
+        }
+        const upstreamContent = await fetchHttps(UPSTREAM.modelRequirementsUrl);
+        currentSha = await getCommitSha();
+        upstreamReqs = parseUpstreamRequirements(upstreamContent);
+      } catch (e) {
+        if (jsonOutput) {
+          // For JSON output on network failure, return empty result with hasDrift=false
+          // This maintains backward compatibility for scripts that check hasDrift
+          output.networkError = e.message;
+          console.log(JSON.stringify(output, null, 2));
+        } else {
+          console.warn(`${colors.yellow}⚠ Network unavailable or fetch failed: ${e.message}${colors.reset}`);
+          console.log(`${colors.gray}   Skipping drift check (graceful fallback)${colors.reset}`);
+        }
+        process.exit(0); // Graceful exit on network failure
+      }
+    }
   }
 
+  output.currentSha = currentSha;
+
+  // Parse local requirements
+  let localReqs;
   try {
     const localContent = fs.readFileSync(LOCAL_FILE, 'utf8');
     localReqs = parseLocalRequirements(localContent);
@@ -500,6 +819,7 @@ async function main() {
   output.newCategories = drift.newCategories;
   output.missingCategories = drift.missingCategories;
   output.changedCategories = drift.changedCategories;
+  output.actionRequired = buildActionRequired(drift);
 
   if (jsonOutput) {
     console.log(JSON.stringify(output, null, 2));

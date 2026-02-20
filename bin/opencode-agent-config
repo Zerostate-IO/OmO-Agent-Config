@@ -26,6 +26,7 @@ if (fs.existsSync(path.join(localLib, 'server.js'))) {
 
 const { startServer, openBrowser } = require(path.join(libPath, 'server'));
 const { CONFIGS_DIR, CONFIG_FILE, ACTIVE_CONFIG_FILE } = require(path.join(libPath, 'constants'));
+const { createBackup } = require(path.join(libPath, 'core', 'backup'));
 
 const args = process.argv.slice(2);
 
@@ -131,24 +132,13 @@ async function switchProfile(profileName) {
     // Load profile
     const profileData = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
     
-    // Create backup module path
-    const backupPath = path.join(libPath, 'core', 'backup.js');
     let backupCreated = null;
     
     // Backup current config if exists
     if (fs.existsSync(CONFIG_FILE)) {
       try {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const backupDir = path.join(process.env.HOME, '.config', 'opencode', 'backups');
-        
-        if (!fs.existsSync(backupDir)) {
-          fs.mkdirSync(backupDir, { recursive: true });
-        }
-        
-        const currentConfig = fs.readFileSync(CONFIG_FILE, 'utf8');
-        const backupFile = path.join(backupDir, `oh-my-opencode-${timestamp}.json`);
-        fs.writeFileSync(backupFile, currentConfig);
-        backupCreated = timestamp;
+        const result = await createBackup();
+        backupCreated = result.timestamp;
       } catch (e) {
         // Continue even if backup fails
       }
