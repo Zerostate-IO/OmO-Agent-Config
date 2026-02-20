@@ -4,7 +4,7 @@
  * Upstream Drift Detection Script
  * Compares local model-requirements.js against upstream Oh My Opencode source
  * 
- * Usage: node scripts/drift-check.js [--exit-on-drift]
+ * Usage: node scripts/drift-check.js [--exit-on-drift] [--json]
  * 
  * Exit codes:
  *   0 - No drift detected (or network unavailable, graceful)
@@ -154,19 +154,74 @@ function parseLocalRequirements(content) {
 }
 
 /**
- * Get the first fallback entry signature for comparison
- * @param {Object} entry - Fallback chain entry
- * @returns {string} Signature string
+ * Get full fallback chain signature for comparison
+ * Format: provider1/model1:variant1,provider2/model2:variant2,...
+ * @param {Object} entry - Model requirement entry
+ * @returns {string|null} Full chain signature or null
  */
-function getFallbackSignature(entry) {
+function getFullChainSignature(entry) {
   if (!entry || !Array.isArray(entry.fallbackChain) || entry.fallbackChain.length === 0) {
     return null;
   }
-  const first = entry.fallbackChain[0];
-  const providers = first.providers ? first.providers.join(',') : 'none';
-  const model = first.model || 'unknown';
-  const variant = first.variant ? `:${first.variant}` : '';
-  return `${providers}/${model}${variant}`;
+
+  const chainSigs = entry.fallbackChain.map(fallback => {
+    const providers = fallback.providers ? fallback.providers.join(',') : 'none';
+    const model = fallback.model || 'unknown';
+    const variant = fallback.variant ? `:${fallback.variant}` : '';
+    return `${providers}/${model}${variant}`;
+  });
+
+  return chainSigs.join(',');
+}
+
+/**
+ * Get gating fields signature for comparison
+ * @param {Object} entry - Model requirement entry
+ * @returns {string} Gating fields signature
+ */
+function getGatingSignature(entry) {
+  if (!entry) return '';
+
+  const parts = [];
+
+  // requiresProvider (sorted for consistent comparison)
+  if (Array.isArray(entry.requiresProvider) && entry.requiresProvider.length > 0) {
+    parts.push(`reqProv=[${entry.requiresProvider.slice().sort().join(',')}]`);
+  }
+
+  // requiresModel
+  if (entry.requiresModel) {
+    parts.push(`reqModel=${entry.requiresModel}`);
+  }
+
+  // requiresAnyModel
+  if (entry.requiresAnyModel === true) {
+    parts.push('reqAnyModel=true');
+  }
+
+  // default variant
+  if (entry.variant) {
+    parts.push(`variant=${entry.variant}`);
+  }
+
+  return parts.join('|');
+}
+
+/**
+ * Get complete signature combining chain and gating fields
+ * @param {Object} entry - Model requirement entry
+ * @returns {string|null} Complete signature or null
+ */
+function getCompleteSignature(entry) {
+  const chainSig = getFullChainSignature(entry);
+  const gatingSig = getGatingSignature(entry);
+
+  if (!chainSig) return null;
+
+  if (gatingSig) {
+    return `${chainSig};${gatingSig}`;
+  }
+  return chainSig;
 }
 
 /**
@@ -205,17 +260,29 @@ function compareRequirements(upstream, local) {
     }
   }
 
-  // Compare existing agents' first fallback entry
+  // Compare existing agents' complete signatures (full chain + gating)
   for (const agent of upstreamAgents) {
     if (local.agents[agent]) {
-      const upstreamSig = getFallbackSignature(upstream.agents[agent]);
-      const localSig = getFallbackSignature(local.agents[agent]);
-      
+      const upstreamSig = getCompleteSignature(upstream.agents[agent]);
+      const localSig = getCompleteSignature(local.agents[agent]);
+
       if (upstreamSig !== localSig) {
         drift.changedAgents.push({
           name: agent,
-          upstream: upstreamSig,
-          local: localSig
+          upstream: {
+            fallbackChain: upstream.agents[agent].fallbackChain,
+            requiresProvider: upstream.agents[agent].requiresProvider || null,
+            requiresModel: upstream.agents[agent].requiresModel || null,
+            requiresAnyModel: upstream.agents[agent].requiresAnyModel || false,
+            variant: upstream.agents[agent].variant || null
+          },
+          local: {
+            fallbackChain: local.agents[agent].fallbackChain,
+            requiresProvider: local.agents[agent].requiresProvider || null,
+            requiresModel: local.agents[agent].requiresModel || null,
+            requiresAnyModel: local.agents[agent].requiresAnyModel || false,
+            variant: local.agents[agent].variant || null
+          }
         });
         drift.hasDrift = true;
       }
@@ -242,14 +309,26 @@ function compareRequirements(upstream, local) {
 
   for (const cat of upstreamCats) {
     if (local.categories[cat]) {
-      const upstreamSig = getFallbackSignature(upstream.categories[cat]);
-      const localSig = getFallbackSignature(local.categories[cat]);
-      
+      const upstreamSig = getCompleteSignature(upstream.categories[cat]);
+      const localSig = getCompleteSignature(local.categories[cat]);
+
       if (upstreamSig !== localSig) {
         drift.changedCategories.push({
           name: cat,
-          upstream: upstreamSig,
-          local: localSig
+          upstream: {
+            fallbackChain: upstream.categories[cat].fallbackChain,
+            requiresProvider: upstream.categories[cat].requiresProvider || null,
+            requiresModel: upstream.categories[cat].requiresModel || null,
+            requiresAnyModel: upstream.categories[cat].requiresAnyModel || false,
+            variant: upstream.categories[cat].variant || null
+          },
+          local: {
+            fallbackChain: local.categories[cat].fallbackChain,
+            requiresProvider: local.categories[cat].requiresProvider || null,
+            requiresModel: local.categories[cat].requiresModel || null,
+            requiresAnyModel: local.categories[cat].requiresAnyModel || false,
+            variant: local.categories[cat].variant || null
+          }
         });
         drift.hasDrift = true;
       }
@@ -257,6 +336,40 @@ function compareRequirements(upstream, local) {
   }
 
   return drift;
+}
+
+/**
+ * Format a single fallback entry for display
+ * @param {Object} entry - Fallback entry
+ * @returns {string} Formatted string
+ */
+function formatFallbackEntry(entry) {
+  const providers = entry.providers ? entry.providers.join(',') : 'none';
+  const model = entry.model || 'unknown';
+  const variant = entry.variant ? `:${entry.variant}` : '';
+  return `${providers}/${model}${variant}`;
+}
+
+/**
+ * Format gating fields for display
+ * @param {Object} entry - Model requirement entry
+ * @returns {string} Formatted gating string
+ */
+function formatGatingFields(entry) {
+  const parts = [];
+  if (entry.requiresProvider && entry.requiresProvider.length > 0) {
+    parts.push(`requiresProvider=[${entry.requiresProvider.join(',')}]`);
+  }
+  if (entry.requiresModel) {
+    parts.push(`requiresModel=${entry.requiresModel}`);
+  }
+  if (entry.requiresAnyModel) {
+    parts.push('requiresAnyModel=true');
+  }
+  if (entry.variant) {
+    parts.push(`variant=${entry.variant}`);
+  }
+  return parts.length > 0 ? ` (${parts.join(', ')})` : '';
 }
 
 /**
@@ -287,21 +400,43 @@ async function main() {
   const args = process.argv.slice(2);
   const exitOnDrift = args.includes('--exit-on-drift');
   const verbose = args.includes('--verbose') || args.includes('-v');
+  const jsonOutput = args.includes('--json');
 
-  console.log(`${colors.cyan}🔍 OmO Upstream Drift Check${colors.reset}`);
-  console.log(`${colors.gray}   Local: ${LOCAL_FILE}${colors.reset}`);
-  console.log(`${colors.gray}   Upstream: ${UPSTREAM_URL}${colors.reset}`);
-  console.log('');
+  // When JSON output is requested, suppress all console output except the final JSON
+  const output = {
+    hasDrift: false,
+    newAgents: [],
+    missingAgents: [],
+    changedAgents: [],
+    newCategories: [],
+    missingCategories: [],
+    changedCategories: [],
+    pinnedSha: null
+  };
+
+  if (!jsonOutput) {
+    console.log(`${colors.cyan}🔍 OmO Upstream Drift Check${colors.reset}`);
+    console.log(`${colors.gray}   Local: ${LOCAL_FILE}${colors.reset}`);
+    console.log(`${colors.gray}   Upstream: ${UPSTREAM_URL}${colors.reset}`);
+    console.log('');
+  }
 
   // Check if local file exists
   if (!fs.existsSync(LOCAL_FILE)) {
-    console.error(`${colors.red}❌ Local file not found: ${LOCAL_FILE}${colors.reset}`);
+    if (jsonOutput) {
+      output.error = `Local file not found: ${LOCAL_FILE}`;
+      console.log(JSON.stringify(output, null, 2));
+    } else {
+      console.error(`${colors.red}❌ Local file not found: ${LOCAL_FILE}${colors.reset}`);
+    }
     process.exit(2);
   }
 
   // Show pinned SHA if available
   const pinnedSha = getPinnedSha();
-  if (pinnedSha) {
+  output.pinnedSha = pinnedSha;
+
+  if (!jsonOutput && pinnedSha) {
     console.log(`${colors.gray}📌 Pinned upstream SHA: ${pinnedSha}${colors.reset}`);
     console.log('');
   }
@@ -309,24 +444,36 @@ async function main() {
   // Fetch upstream content
   let upstreamContent;
   try {
-    if (verbose) {
+    if (!jsonOutput && verbose) {
       console.log(`${colors.gray}Fetching upstream...${colors.reset}`);
     }
     upstreamContent = await fetchHttps(UPSTREAM_URL);
   } catch (e) {
-    console.warn(`${colors.yellow}⚠ Network unavailable or fetch failed: ${e.message}${colors.reset}`);
-    console.log(`${colors.gray}   Skipping drift check (graceful fallback)${colors.reset}`);
+    if (jsonOutput) {
+      // For JSON output on network failure, return empty result with hasDrift=false
+      // This maintains backward compatibility for scripts that check hasDrift
+      output.networkError = e.message;
+      console.log(JSON.stringify(output, null, 2));
+    } else {
+      console.warn(`${colors.yellow}⚠ Network unavailable or fetch failed: ${e.message}${colors.reset}`);
+      console.log(`${colors.gray}   Skipping drift check (graceful fallback)${colors.reset}`);
+    }
     process.exit(0); // Graceful exit on network failure
   }
 
   // Parse both sources
   let upstreamReqs;
   let localReqs;
-  
+
   try {
     upstreamReqs = parseUpstreamRequirements(upstreamContent);
   } catch (e) {
-    console.error(`${colors.red}❌ Failed to parse upstream requirements: ${e.message}${colors.reset}`);
+    if (jsonOutput) {
+      output.error = `Failed to parse upstream requirements: ${e.message}`;
+      console.log(JSON.stringify(output, null, 2));
+    } else {
+      console.error(`${colors.red}❌ Failed to parse upstream requirements: ${e.message}${colors.reset}`);
+    }
     process.exit(2);
   }
 
@@ -334,14 +481,32 @@ async function main() {
     const localContent = fs.readFileSync(LOCAL_FILE, 'utf8');
     localReqs = parseLocalRequirements(localContent);
   } catch (e) {
-    console.error(`${colors.red}❌ Failed to parse local requirements: ${e.message}${colors.reset}`);
+    if (jsonOutput) {
+      output.error = `Failed to parse local requirements: ${e.message}`;
+      console.log(JSON.stringify(output, null, 2));
+    } else {
+      console.error(`${colors.red}❌ Failed to parse local requirements: ${e.message}${colors.reset}`);
+    }
     process.exit(2);
   }
 
   // Compare
   const drift = compareRequirements(upstreamReqs, localReqs);
 
-  // Report results
+  output.hasDrift = drift.hasDrift;
+  output.newAgents = drift.newAgents;
+  output.missingAgents = drift.missingAgents;
+  output.changedAgents = drift.changedAgents;
+  output.newCategories = drift.newCategories;
+  output.missingCategories = drift.missingCategories;
+  output.changedCategories = drift.changedCategories;
+
+  if (jsonOutput) {
+    console.log(JSON.stringify(output, null, 2));
+    process.exit(exitOnDrift && drift.hasDrift ? 1 : 0);
+  }
+
+  // Human-readable output
   console.log(`${colors.cyan}📊 Comparison Results:${colors.reset}`);
   console.log(`   Agents: ${Object.keys(upstreamReqs.agents).length} upstream, ${Object.keys(localReqs.agents).length} local`);
   console.log(`   Categories: ${Object.keys(upstreamReqs.categories).length} upstream, ${Object.keys(localReqs.categories).length} local`);
@@ -359,8 +524,10 @@ async function main() {
   if (drift.newAgents.length > 0) {
     console.log(`${colors.yellow}New agents in upstream (need to add):${colors.reset}`);
     for (const agent of drift.newAgents) {
-      const sig = getFallbackSignature(upstreamReqs.agents[agent]);
-      console.log(`   + ${agent}: ${sig}`);
+      const entry = upstreamReqs.agents[agent];
+      const chainStr = entry.fallbackChain.map(formatFallbackEntry).join(' → ');
+      const gatingStr = formatGatingFields(entry);
+      console.log(`   + ${agent}: ${chainStr}${gatingStr}`);
     }
     console.log('');
   }
@@ -374,11 +541,25 @@ async function main() {
   }
 
   if (drift.changedAgents.length > 0) {
-    console.log(`${colors.yellow}Agents with changed fallback chains:${colors.reset}`);
+    console.log(`${colors.yellow}Agents with changed fallback chains or gating:${colors.reset}`);
     for (const change of drift.changedAgents) {
       console.log(`   ~ ${change.name}:`);
-      console.log(`     upstream: ${change.upstream}`);
-      console.log(`     local:    ${change.local}`);
+
+      // Show full chain comparison
+      const upstreamChain = change.upstream.fallbackChain.map(formatFallbackEntry).join(' → ');
+      const localChain = change.local.fallbackChain.map(formatFallbackEntry).join(' → ');
+
+      console.log(`     upstream chain: ${upstreamChain}`);
+      console.log(`     local chain:    ${localChain}`);
+
+      // Show gating fields if they differ
+      const upstreamGating = formatGatingFields(change.upstream);
+      const localGating = formatGatingFields(change.local);
+
+      if (upstreamGating !== localGating) {
+        console.log(`     upstream gating:${upstreamGating || ' (none)'}`);
+        console.log(`     local gating:   ${localGating || ' (none)'}`);
+      }
     }
     console.log('');
   }
@@ -386,17 +567,42 @@ async function main() {
   if (drift.newCategories.length > 0) {
     console.log(`${colors.yellow}New categories in upstream:${colors.reset}`);
     for (const cat of drift.newCategories) {
-      console.log(`   + ${cat}`);
+      const entry = upstreamReqs.categories[cat];
+      const chainStr = entry.fallbackChain.map(formatFallbackEntry).join(' → ');
+      const gatingStr = formatGatingFields(entry);
+      console.log(`   + ${cat}: ${chainStr}${gatingStr}`);
+    }
+    console.log('');
+  }
+
+  if (drift.missingCategories.length > 0) {
+    console.log(`${colors.yellow}Categories removed from upstream:${colors.reset}`);
+    for (const cat of drift.missingCategories) {
+      console.log(`   - ${cat}`);
     }
     console.log('');
   }
 
   if (drift.changedCategories.length > 0) {
-    console.log(`${colors.yellow}Categories with changed fallback chains:${colors.reset}`);
+    console.log(`${colors.yellow}Categories with changed fallback chains or gating:${colors.reset}`);
     for (const change of drift.changedCategories) {
       console.log(`   ~ ${change.name}:`);
-      console.log(`     upstream: ${change.upstream}`);
-      console.log(`     local:    ${change.local}`);
+
+      // Show full chain comparison
+      const upstreamChain = change.upstream.fallbackChain.map(formatFallbackEntry).join(' → ');
+      const localChain = change.local.fallbackChain.map(formatFallbackEntry).join(' → ');
+
+      console.log(`     upstream chain: ${upstreamChain}`);
+      console.log(`     local chain:    ${localChain}`);
+
+      // Show gating fields if they differ
+      const upstreamGating = formatGatingFields(change.upstream);
+      const localGating = formatGatingFields(change.local);
+
+      if (upstreamGating !== localGating) {
+        console.log(`     upstream gating:${upstreamGating || ' (none)'}`);
+        console.log(`     local gating:   ${localGating || ' (none)'}`);
+      }
     }
     console.log('');
   }
@@ -417,6 +623,13 @@ async function main() {
 
 // Run main
 main().catch(e => {
-  console.error(`${colors.red}❌ Unexpected error: ${e.message}${colors.reset}`);
+  const args = process.argv.slice(2);
+  const jsonOutput = args.includes('--json');
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ hasDrift: false, error: e.message }, null, 2));
+  } else {
+    console.error(`${colors.red}❌ Unexpected error: ${e.message}${colors.reset}`);
+  }
   process.exit(2);
 });
