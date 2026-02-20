@@ -100,9 +100,14 @@ Go to GitHub > Releases > Create new release
 
 ## Release History
 
-- **v0.0.2** (2025-12-24) - Provider filtering fixes
-- **v0.0.1** (Initial) - First working version with basic functionality
+- **v0.8.0** (2026-02-20) - Backup lifecycle management, discouraged-model warnings, upstream sync tooling, and expanded test coverage
+- **v0.7.0** (2026-02-12) - Pending-change UX and model change review improvements
+- **v0.6.0** (2026-02-12) - Web UI + refreshed model discovery
+- **v0.5.0** (2025-12-30) - Project scope, secrets portability, provider preferences
+- **v0.4.0** (2025-12-29) - QoL bulk workflows + modular architecture
 
 ## Recent Releases
 
+- **v0.8.0** (2026-02-20) - Backup lifecycle management + upstream sync workflow
+- **v0.7.0** (2026-02-12) - Pending model change UX + review modal
 - **v0.6.0** (2026-02-12) - Web UI + refreshed model discovery

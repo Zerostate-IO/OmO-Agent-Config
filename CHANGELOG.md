@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-02-20
+
+### Added
+- Backup management APIs under `/api/backups` with list/create/restore/delete/purge operations.
+- Profile Management Backups UI with restore actions and purge preview flow.
+- Backup retention helpers in core backup module: soft-delete to `.trash/` and policy-based purge support.
+- Upstream doc scanner script (`scripts/omo-doc-scan.js`) for discouraged-model signal extraction.
+- Normalized upstream snapshot generator (`scripts/upstream-snapshot.js`) with cache support.
+- Deterministic Playwright coverage for backup management and discouraged-model warning badges.
+- Unit coverage for backup purge safety and drift-check comparison behavior.
+- Operator documentation for upstream synchronization workflow (`docs/UPSTREAM-SYNC.md`).
+
+### Changed
+- Drift checker now compares full fallback chains plus gating metadata (not only first fallback entry).
+- Drift checker supports machine-readable JSON output and sync-oriented flags (`--refresh`, `--pin`).
+- Recommendation engine now applies soft penalties for discouraged models and surfaces warning metadata to UI.
+- Agent discovery API now marks newly discovered agents with `isProfiled` status.
+- CLI quick-switch backup creation now reuses shared core backup implementation.
+
+### Fixed
+- Agent model selector now shows immediate pending-change indicators before save.
+- Purge UX guardrails now require explicit confirmation and communicate soft-delete safety.
+
 ## [0.7.0] - 2026-02-12
 
 ### Added
