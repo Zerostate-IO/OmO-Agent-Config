@@ -96,4 +96,34 @@ test.describe('OmO Agent Config UI', () => {
     // Take screenshot
     await page.screenshot({ path: 'test-results/profile-management.png' });
   });
+
+  test('Recommendations render in agent model selector', async ({ page }) => {
+    // Wait for agents to load
+    await page.waitForTimeout(2000);
+
+    // Click the "Change Model" button for the sisyphus agent specifically
+    // Use exact match for the agent name to avoid matching sisyphus-junior
+    const changeModelBtn = await page.locator('button[onclick="changeAgentModel(\'sisyphus\')"]');
+    await changeModelBtn.click();
+    
+    // Wait for modal to open
+    await page.waitForTimeout(500);
+    
+    // Check modal is open
+    const modal = await page.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    // Assert "Recommended" section exists
+    const recommendedHeading = await page.locator('h4:has-text("Recommended for")');
+    await expect(recommendedHeading).toBeVisible();
+    
+    // Assert at least 1 recommendation item is visible
+    const recommendedButtons = await page.locator('.model-selector-list .model-select-btn');
+    const count = await recommendedButtons.count();
+    expect(count).toBeGreaterThan(0);
+    console.log(`Found ${count} recommended model buttons`);
+    
+    // Take screenshot
+    await page.screenshot({ path: 'test-results/recommendations.png' });
+  });
 });

@@ -23,6 +23,15 @@ chmod +x ~/.config/opencode/bin/opencode-agent-config
 If you needed `sudo` to install Node, reinstall Node using a version manager instead.
 
 ## Web UI / Server
+### Security / Access from other devices
+
+The server is designed for localhost use only:
+- Binds to `127.0.0.1` (not accessible from other machines)
+- CORS policy restricts requests to same-origin only
+- No wildcard (`*`) CORS is allowed
+
+If you need to access from another device, use SSH port forwarding instead of changing the bind address.
+
 
 ### Browser doesn’t open
 
@@ -68,4 +77,23 @@ If you need to roll back manually:
 ```bash
 cp ~/.config/opencode/backups/oh-my-opencode-YYYY-MM-DD-HHMMSS.json \
   ~/.config/opencode/oh-my-opencode.jsonc
+```
+
+## Tests
+
+### Running tests
+
+Run the full test suite:
+
+```bash
+npm test
+```
+
+Or use the test runner script:
+
+```bash
+./run-tests.sh all        # Run all tests
+./run-tests.sh api        # API tests only
+./run-tests.sh ui         # UI tests only
+./run-tests.sh install    # Installation tests
 ```

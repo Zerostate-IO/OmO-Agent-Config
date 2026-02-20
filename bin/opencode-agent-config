@@ -46,7 +46,7 @@ Examples:
     opencode-agent-config --list             # Show: omo-default, work-credits, etc.
 
 Profiles are stored in: ~/.config/opencode/configs/
-Active config is at: ~/.config/opencode/oh-my-opencode.json
+Active config is at: ~/.config/opencode/oh-my-opencode.jsonc
 `);
 }
 

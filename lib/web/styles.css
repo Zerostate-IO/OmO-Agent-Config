@@ -1749,3 +1749,50 @@ body {
     font-size: 0.8rem;
     color: var(--color-text-secondary);
 }
+
+/* Variant badges for recommended models */
+.variant-badge {
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-left: 4px;
+}
+
+.variant-max {
+    background-color: #ffd700;
+    color: #1a1a2e;
+}
+
+.variant-xhigh {
+    background-color: #ff9500;
+    color: #1a1a2e;
+}
+
+.variant-high {
+    background-color: var(--color-success);
+    color: white;
+}
+
+.variant-medium {
+    background-color: var(--color-secondary);
+    color: white;
+}
+
+.variant-low {
+    background-color: var(--color-text-secondary);
+    color: var(--color-bg);
+}
+
+/* Provenance badge for fallback-chain models */
+.provenance-badge {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-left: 2px;
+}
+
+.provenance-badge:hover {
+    opacity: 1;
+}
