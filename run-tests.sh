@@ -200,6 +200,11 @@ case $TEST_TYPE in
     echo "Running requirements tests..."
     node tests/requirements-test.js || { echo "  ❌ Requirements tests failed"; exit 1; }
     
+    # Run backup and drift-check tests
+    echo ""
+    echo "Running backup and drift-check tests..."
+    node tests/backup-drift-test.js || { echo "  ❌ Backup and drift-check tests failed"; exit 1; }
+    
     echo ""
     echo "✅ API tests complete"
     ;;
@@ -249,6 +254,11 @@ case $TEST_TYPE in
     echo ""
     echo "=== Requirements Tests ==="
     node tests/requirements-test.js || { echo "❌ Requirements tests failed"; exit 1; }
+    
+    # Backup and drift-check tests
+    echo ""
+    echo "=== Backup & Drift-Check Tests ==="
+    node tests/backup-drift-test.js || { echo "❌ Backup and drift-check tests failed"; exit 1; }
 
     echo ""
     echo "=== UI Tests ==="
