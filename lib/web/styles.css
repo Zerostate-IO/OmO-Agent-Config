@@ -387,6 +387,19 @@ body {
 .badge.cost-moderate { background-color: var(--color-warning); color: var(--color-bg); }
 .badge.cost-cheap { background-color: var(--color-success); color: white; }
 
+/* Warning badges for discouraged models */
+.badge.warning-badge { background-color: var(--color-warning); color: var(--color-bg); }
+.badge.warning-badge-avoid { background-color: var(--color-error); color: white; }
+
+/* Unprofiled agent badge */
+.badge.unprofiled-badge {
+    background-color: var(--color-warning);
+    color: var(--color-bg);
+    font-size: 0.65rem;
+    font-style: italic;
+    cursor: help;
+}
+
 .model-assigned {
     font-size: 0.8rem;
     color: var(--color-text-secondary);
