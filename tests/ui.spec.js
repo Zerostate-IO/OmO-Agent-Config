@@ -126,4 +126,55 @@ test.describe('OmO Agent Config UI', () => {
     // Take screenshot
     await page.screenshot({ path: 'test-results/recommendations.png' });
   });
+
+  test('Can change agent model and see pending indicator', async ({ page }) => {
+    // Wait for agents to load
+    await page.waitForTimeout(2000);
+
+    // Use stable selector for sisyphus agent
+    const sisyphusCard = await page.locator('.agent-config-card[data-agent-name="sisyphus"]');
+    await sisyphusCard.locator('button:has-text("Change Model")').click();
+
+    // Wait for modal to open
+    await page.waitForTimeout(500);
+
+    // Select a non-current model
+    await page.locator('.model-select-btn:not(.current)').first().click();
+    await page.waitForTimeout(500);
+
+    // Assert pending indicator appears on the card
+    await expect(sisyphusCard).toHaveClass(/pending-change/);
+    await expect(sisyphusCard.locator('.agent-config-pending-label')).toBeVisible();
+
+    // Take screenshot
+    await page.screenshot({ path: 'test-results/pending-indicator-visible.png' });
+  });
+
+  test('Undo removes pending indicator', async ({ page }) => {
+    // Wait for agents to load
+    await page.waitForTimeout(2000);
+
+    // First make a change
+    const sisyphusCard = await page.locator('.agent-config-card[data-agent-name="sisyphus"]');
+    await sisyphusCard.locator('button:has-text("Change Model")').click();
+    await page.waitForTimeout(500);
+
+    // Select a non-current model
+    await page.locator('.model-select-btn:not(.current)').first().click();
+    await page.waitForTimeout(500);
+
+    // Assert pending indicator is visible before undo
+    await expect(sisyphusCard).toHaveClass(/pending-change/);
+
+    // Click undo
+    await page.click('#undo-btn');
+    await page.waitForTimeout(1000);
+
+    // Assert pending indicator is gone
+    await expect(sisyphusCard).not.toHaveClass(/pending-change/);
+    await expect(page.locator('#save-btn')).toBeDisabled();
+
+    // Take screenshot
+    await page.screenshot({ path: 'test-results/undo-clears-pending.png' });
+  });
 });

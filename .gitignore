@@ -32,11 +32,9 @@ tmp/
 temp/
 *.tmp
 
-# Local OpenCode project artifacts (track skills only)
-.opencode/*
-!.opencode/.gitignore
-!.opencode/skill/
-!.opencode/skill/**
+# AI assistant working directories
+.opencode/
+.sisyphus/
 
 # Local scratch
 tmp_prompts.js
