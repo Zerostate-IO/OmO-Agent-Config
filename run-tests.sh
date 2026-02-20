@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test runner for OmO Agent Config
-# Usage: ./run-tests.sh [api|ui|install|all]
+# Usage: ./run-tests.sh [api|ui|install|drift|all]
 
 set -e
 
@@ -137,22 +137,26 @@ find_existing_server() {
     return 1
 }
 
+# Check for explicit port from environment variable
+if [ -n "$OMO_PORT" ]; then
+    echo "Using explicit port from OMO_PORT: $OMO_PORT"
+    BASE_URL="http://localhost:$OMO_PORT"
+    # Don't start a server, assume user has started one or will start one
+    SERVER_PID=""
 # Try to find existing server first
-EXISTING_PORT=$(find_existing_server) || true
-
-if [ -n "$EXISTING_PORT" ]; then
+elif EXISTING_PORT=$(find_existing_server); then
     echo "✅ Using existing server at http://localhost:$EXISTING_PORT"
     BASE_URL="http://localhost:$EXISTING_PORT"
 else
     echo "Starting server..."
     OMO_NO_OPEN=1 CI=true node bin/opencode-agent-config > "$LOG_FILE" 2>&1 &
     SERVER_PID=$!
-    
+
     echo "  Server PID: $SERVER_PID"
     echo "  Polling for port..."
-    
+
     TEST_PORT=$(wait_for_server 30)
-    
+
     if [ -z "$TEST_PORT" ]; then
         echo "❌ Server failed to start within timeout"
         echo ""
@@ -160,7 +164,7 @@ else
         cat "$LOG_FILE" || true
         exit 1
     fi
-    
+
     BASE_URL="http://localhost:$TEST_PORT"
     echo "✅ Server running at $BASE_URL"
 fi
@@ -213,11 +217,25 @@ case $TEST_TYPE in
     run_install_tests
     ;;
     
+  drift)
+    echo "=== Drift Check ==="
+    echo ""
+    node scripts/drift-check.js || true
+    echo ""
+    echo "✅ Drift check complete"
+    ;;
+    
   all|*)
     echo "Running all tests..."
     echo ""
     
     run_install_tests || exit 1
+    
+    # Drift check (non-blocking, dev-only)
+    echo ""
+    echo "=== Drift Check ==="
+    node scripts/drift-check.js || true
+    echo ""
     
     # API tests
     echo ""

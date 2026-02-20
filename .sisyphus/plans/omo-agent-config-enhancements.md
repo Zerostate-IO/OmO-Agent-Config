@@ -744,7 +744,9 @@ Final verification wave (parallel review): F1-F4
     Evidence: .sisyphus/evidence/task-15-docs-security.txt
   ```
 
-- [ ] 16. [DECISION NEEDED] Define the feature-expansion shortlist (pick 2-4)
+- [x] 16. [DECISION NEEDED] Define the feature-expansion shortlist (pick 2-4)
+
+  **SCOPE DECISION**: Implementing Tasks 17 and 18 only. Tasks 19 and 20 are OUT for this cycle.
 
   **What to do**:
   - Choose which items from Tasks 17-20 are IN scope for this cycle.
@@ -778,7 +780,7 @@ Final verification wave (parallel review): F1-F4
     Evidence: .sisyphus/evidence/task-16-no-scope-creep.txt
   ```
 
-- [ ] 17. Add optional explicit port override for server + test runner
+- [x] 17. Add optional explicit port override for server + test runner
 
   **What to do**:
   - Add a documented env var (e.g., `OMO_PORT`) to force server bind port.
@@ -820,7 +822,7 @@ Final verification wave (parallel review): F1-F4
     Evidence: .sisyphus/evidence/task-17-default-probe.txt
   ```
 
-- [ ] 18. Add upstream drift detection for fallback chains (OmO guide vs TS source)
+- [x] 18. Add upstream drift detection for fallback chains (OmO guide vs TS source)
 
   **What to do**:
   - Add a non-runtime (dev/test) script that compares pinned upstream OmO fallback definitions against the local mirrored requirements.
@@ -865,7 +867,7 @@ Final verification wave (parallel review): F1-F4
     Evidence: .sisyphus/evidence/task-18-drift-detected.txt
   ```
 
-- [ ] 19. Optional: Add minimal GitHub Actions CI for `./run-tests.sh all`
+- [ ] ~~19. Optional: Add minimal GitHub Actions CI for `./run-tests.sh all`~~ **OUT - Deferred**
 
   **What to do**:
   - Add `.github/workflows/test.yml` to run `./run-tests.sh all` on PRs.
@@ -903,7 +905,7 @@ Final verification wave (parallel review): F1-F4
     Evidence: .sisyphus/evidence/task-19-no-secrets.txt
   ```
 
-- [ ] 20. Optional: UI quality-of-life polish (non-redesign)
+- [ ] ~~20. Optional: UI quality-of-life polish (non-redesign)~~ **OUT - Deferred**
 
   **What to do**:
   - Small UX tweaks only (e.g., clearer warnings when recommendations are heuristic vs chain-based; make variant/provenance tooltips consistent).
@@ -947,7 +949,7 @@ Final verification wave (parallel review): F1-F4
 
 ## Final verification wave
 
-- [ ] F1. Plan compliance audit (oracle)
+- [x] F1. Plan compliance audit (oracle)
 
   **What to do**:
   - Verify each Must-have is implemented.
@@ -964,14 +966,14 @@ Final verification wave (parallel review): F1-F4
     Evidence: .sisyphus/evidence/final-f1-audit.txt
   ```
 
-- [ ] F2. Code quality review (unspecified-high)
+- [x] F2. Code quality review (unspecified-high)
   - Run lints/type checks if present; otherwise ensure no obvious code smell regressions.
   - Ensure no duplicate logic reintroduced.
 
-- [ ] F3. Real QA run-through (unspecified-high)
+- [x] F3. Real QA run-through (unspecified-high)
   - Execute QA scenarios for Tasks 1-20; store evidence under `.sisyphus/evidence/final-qa/`.
 
-- [ ] F4. Scope fidelity check (deep)
+- [x] F4. Scope fidelity check (deep)
   - Confirm Wave 3 only implemented selected features (Task 16 decision).
 
 ---
