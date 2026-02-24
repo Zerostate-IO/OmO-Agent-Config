@@ -27,7 +27,7 @@ const {
 } = require('../lib/core/model-requirements');
 
 const { normalizeAgentKey, normalizeProviderName, getProviderAliases, PROVIDER_ALIASES } = require('../lib/constants');
-const { parseModels } = require('../lib/core/models');
+const { parseModels, hasExtendedThinking } = require('../lib/core/models');
 
 // Test counters
 let passed = 0;
@@ -185,13 +185,13 @@ test('Hephaestus gating: passes when openai available', () => {
   assert.strictEqual(result, true, 'Expected gating to pass with openai available');
 });
 
-test('Hephaestus gating: passes when github-copilot available', () => {
+test('Hephaestus gating: fails when only github-copilot available', () => {
   const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
   const onlyCopilot = { 'github-copilot': true };
   
   const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyCopilot);
   
-  assert.strictEqual(result, true, 'Expected gating to pass with github-copilot available');
+  assert.strictEqual(result, false, 'Expected gating to fail with github-copilot only');
 });
 
 test('Hephaestus gating: fails when no required providers available', () => {
@@ -200,12 +200,31 @@ test('Hephaestus gating: fails when no required providers available', () => {
   
   const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyAnthropic);
   
-  assert.strictEqual(result, false, 'Expected gating to fail without openai/github-copilot/opencode');
+  assert.strictEqual(result, false, 'Expected gating to fail without openai/opencode');
 });
 
 test('Hephaestus gating: empty requirements always pass', () => {
   const result = isRequiredProviderAvailable([], { 'any-provider': true });
   assert.strictEqual(result, true, 'Expected empty requirements to pass');
+});
+
+test('Regression: gpt-5.3-codex never uses github-copilot', () => {
+  const offenders = [];
+
+  function scan(scope, reqMap) {
+    for (const [name, req] of Object.entries(reqMap || {})) {
+      for (const entry of (req?.fallbackChain || [])) {
+        if (entry?.model === 'gpt-5.3-codex' && Array.isArray(entry.providers) && entry.providers.includes('github-copilot')) {
+          offenders.push({ scope, name, entry });
+        }
+      }
+    }
+  }
+
+  scan('agent', AGENT_MODEL_REQUIREMENTS);
+  scan('category', CATEGORY_MODEL_REQUIREMENTS);
+
+  assert.deepStrictEqual(offenders, [], 'Expected no gpt-5.3-codex entries to include github-copilot');
 });
 
 // ==========================================
@@ -809,6 +828,27 @@ test('Regression: known and unknown agents share common ranking base', () => {
     assert.ok(knownKeys.includes(field), `Known agent missing field: ${field}`);
     assert.ok(unknownKeys.includes(field), `Unknown agent missing field: ${field}`);
   }
+});
+
+test('hasExtendedThinking: boolean interleaved true', () => {
+  const result = hasExtendedThinking({ capabilities: { interleaved: true } });
+  assert.strictEqual(result, true, 'Expected boolean interleaved=true to be treated as thinking');
+});
+
+test('hasExtendedThinking: interleaved object with field', () => {
+  const result = hasExtendedThinking({ capabilities: { interleaved: { field: 'thinking' } } });
+  assert.strictEqual(result, true, 'Expected interleaved.field to be treated as thinking');
+});
+
+test('hasExtendedThinking: variants thinking enabled', () => {
+  const model = { variants: { high: { thinking: { type: 'enabled', budgetTokens: 1000 } } } };
+  const result = hasExtendedThinking(model);
+  assert.strictEqual(result, true, 'Expected variants.*.thinking.type=enabled to be treated as thinking');
+});
+
+test('hasExtendedThinking: false when absent', () => {
+  const result = hasExtendedThinking({});
+  assert.strictEqual(result, false, 'Expected no thinking capability when fields absent');
 });
 
 // ==========================================
