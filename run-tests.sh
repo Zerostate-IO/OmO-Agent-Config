@@ -195,6 +195,42 @@ case $TEST_TYPE in
     echo "Testing /api/models..."
     curl -s "$BASE_URL/api/models" | node -e "const d=JSON.parse(require('fs').readFileSync(0)); console.log('  Models loaded:', d.total, 'models')" || echo "  ❌ Failed"
     
+    # Test route parameter decoding with model containing slash
+    echo "Testing route parameter decoding..."
+    MODEL_WITH_SLASH=$(curl -s "$BASE_URL/api/models" | node -e "const d=JSON.parse(require('fs').readFileSync(0)); const model = d.models.find(m => m.id.includes('/')); console.log(model ? model.id : '')")
+    if [ -z "$MODEL_WITH_SLASH" ]; then
+      echo "  ❌ No models with slash found, cannot test parameter decoding"
+      exit 1
+    fi
+    ENCODED_MODEL=$(MODEL_ID="$MODEL_WITH_SLASH" node -e "console.log(encodeURIComponent(process.env.MODEL_ID))")
+    echo "  Testing /api/models/$ENCODED_MODEL/compare..."
+    RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "$BASE_URL/api/models/$ENCODED_MODEL/compare")
+    HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+    BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+    
+    if [ "$HTTP_STATUS" != "200" ]; then
+      echo "  ❌ Parameter decoding failed (status $HTTP_STATUS)"
+      exit 1
+    fi
+    echo "  ✅ Parameter decoding works (status 200)"
+    VARIANTS_COUNT=$(echo "$BODY" | node -e "const d=JSON.parse(require('fs').readFileSync(0)); console.log(d.variants ? d.variants.length : 0)")
+    if ! echo "$BODY" | node -e "const d=JSON.parse(require('fs').readFileSync(0)); if (!Array.isArray(d.variants)) throw new Error('variants not array')" 2>/dev/null; then
+      echo "  ❌ Response variants is not an array"
+      exit 1
+    fi
+    echo "  ✅ Found $VARIANTS_COUNT variants for model with slash"
+    
+    # Test malformed URL encoding returns 400
+    echo "Testing malformed URL encoding handling..."
+    MALFORMED_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "$BASE_URL/api/models/%E0%A4%A/compare" 2>&1 || true)
+    MALFORMED_STATUS=$(echo "$MALFORMED_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+    
+    if [ "$MALFORMED_STATUS" != "400" ]; then
+      echo "  ❌ Malformed encoding should return 400 (got $MALFORMED_STATUS)"
+      exit 1
+    fi
+    echo "  ✅ Malformed encoding returns 400 error"
+    
     # Run Node.js requirements tests
     echo ""
     echo "Running requirements tests..."
