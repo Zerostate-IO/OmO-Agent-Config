@@ -1,6 +1,25 @@
 #!/usr/bin/env node
 
+/**
+ * Test provider policy ranking logic in isolation.
+ * Sets up a temp HOME before requiring any modules to avoid
+ * interference from user's ~/.config/opencode/provider-policies.json
+ */
+
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+// Isolate HOME before requiring any project modules
+const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-policy-test-'));
+const tmpConfigDir = path.join(tmpHome, '.config', 'opencode');
+fs.mkdirSync(tmpConfigDir, { recursive: true });
+process.env.HOME = tmpHome;
+
+// Clear module cache to ensure fresh load with isolated HOME
+delete require.cache[require.resolve('../lib/constants')];
+delete require.cache[require.resolve('../lib/core/models')];
 
 const constants = require('../lib/constants');
 const { rankProvider, formatModel } = require('../lib/core/models');
@@ -56,3 +75,19 @@ function run() {
 
 run();
 console.log('provider-policy-test: ok');
+
+// Cleanup temp directory
+function cleanup(dir) {
+  if (fs.existsSync(dir)) {
+    for (const entry of fs.readdirSync(dir)) {
+      const full = path.join(dir, entry);
+      if (fs.statSync(full).isDirectory()) {
+        cleanup(full);
+      } else {
+        fs.unlinkSync(full);
+      }
+    }
+    fs.rmdirSync(dir);
+  }
+}
+cleanup(tmpHome);
