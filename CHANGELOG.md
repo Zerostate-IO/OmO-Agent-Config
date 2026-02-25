@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-02-25
+
+### Fixed
+- Increased `opencode models --verbose` timeout from 30s to 2 minutes to prevent ETIMEDOUT errors when providers are slow to respond.
+- Timeout is now configurable via `OMO_MODELS_TIMEOUT` environment variable (milliseconds).
+
 ## [0.9.0] - 2026-02-25
 
 ### Changed
