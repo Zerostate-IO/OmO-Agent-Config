@@ -102,6 +102,40 @@ function getCommitShaFromCache() {
 }
 
 /**
+ * Get commit SHA by running upstream-snapshot.js (last resort fallback)
+ * @returns {Promise<string|null>} Commit SHA or null
+ */
+async function getCommitShaFromUpstreamSnapshot() {
+  const { execSync } = require('child_process');
+  const tmpFile = path.join(os.tmpdir(), `upstream-snapshot-${Date.now()}.json`);
+  
+  try {
+    const scriptPath = path.join(__dirname, 'upstream-snapshot.js');
+    execSync(`node "${scriptPath}" --no-cache --output "${tmpFile}" --json`, {
+      encoding: 'utf8',
+      timeout: 60000,
+      stdio: ['ignore', 'ignore', 'ignore'] // Suppress output
+    });
+    
+    if (fs.existsSync(tmpFile)) {
+      const data = JSON.parse(fs.readFileSync(tmpFile, 'utf8'));
+      const sha = data?.sourceRef?.commitSha;
+      // Clean up temp file
+      try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
+      
+      // Validate SHA is 40-hex
+      if (sha && /^[a-f0-9]{40}$/i.test(sha)) {
+        return sha;
+      }
+    }
+    return null;
+  } catch (e) {
+    // Clean up temp file on error
+    try { fs.unlinkSync(tmpFile); } catch (e2) { /* ignore */ }
+    return null;
+  }
+}
+/**
  * Parse TypeScript model requirements from upstream source
  * @param {string} content - TypeScript file content
  * @returns {Object} Parsed requirements
@@ -677,11 +711,18 @@ async function main() {
         shaSource = 'cached-snapshot';
       }
       
+      // Last resort: run upstream-snapshot.js to fetch SHA
       if (!currentSha) {
+        currentSha = await getCommitShaFromUpstreamSnapshot();
+        shaSource = 'upstream-snapshot';
+      }
+      
+      // Validate SHA is 40-hex before pinning
+      if (!currentSha || !/^[a-f0-9]{40}$/i.test(currentSha)) {
         if (jsonOutput) {
-          console.log(JSON.stringify({ error: 'Could not fetch upstream SHA from API or cached snapshot' }, null, 2));
+          console.log(JSON.stringify({ error: 'Could not fetch upstream SHA from API, cached snapshot, or upstream-snapshot script' }, null, 2));
         } else {
-          console.error(`${colors.red}\u274c Could not fetch upstream SHA from API or cached snapshot${colors.reset}`);
+          console.error(`${colors.red}\u274c Could not fetch upstream SHA from API, cached snapshot, or upstream-snapshot script${colors.reset}`);
         }
         process.exit(2);
       }
