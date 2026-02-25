@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-02-25
+
+### Fixed
+- **Emergency cache fallback**: If `opencode models --verbose` CLI hangs/times out, cached models are now used automatically (even if stale).
+- Increased cache TTL from 5 minutes to 30 minutes (models don't change that often).
+- Added `loadCachedModelsIgnoreExpiry()` helper for emergency fallback scenarios.
+
 ## [0.9.1] - 2026-02-25
 
 ### Fixed
