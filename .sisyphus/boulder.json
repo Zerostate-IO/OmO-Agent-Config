@@ -1,9 +1,10 @@
 {
-  "active_plan": "/Users/legend/projects/OmO-Agent-Config/.sisyphus/plans/omo-agent-config-enhancements.md",
-  "started_at": "2026-02-20T18:22:00.000Z",
+  "active_plan": "/Users/legend/projects/OmO-Agent-Config/.sisyphus/plans/omo-plan-consolidation-provider-policies.md",
+  "started_at": "2026-02-24T21:15:00.382Z",
   "session_ids": [
-    "ses_3842794a5ffewoNZDZ3L3fRyYS"
+    "ses_36ec89a81ffeUaTqhC1yhVvtDn",
+    "ses_36e6e0bcdffeLOMzpPE9j6f60X"
   ],
-  "plan_name": "omo-agent-config-enhancements",
+  "plan_name": "omo-plan-consolidation-provider-policies",
   "agent": "atlas"
 }

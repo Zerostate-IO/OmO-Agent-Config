@@ -387,6 +387,14 @@ body {
 .badge.cost-moderate { background-color: var(--color-warning); color: var(--color-bg); }
 .badge.cost-cheap { background-color: var(--color-success); color: white; }
 
+/* Billing model badges */
+.badge.billing-sub { background-color: #6366f1; color: white; }
+.badge.billing-pay { background-color: #8b5cf6; color: white; }
+.badge.billing-free { background-color: var(--color-success); color: white; }
+.badge.billing-unknown { background-color: var(--color-text-secondary); color: white; }
+
+/* Speed tier badges */
+.badge.speed-fast { background-color: #fbbf24; color: #1a1a2e; font-weight: bold; }
 /* Warning badges for discouraged models */
 .badge.warning-badge { background-color: var(--color-warning); color: var(--color-bg); }
 .badge.warning-badge-avoid { background-color: var(--color-error); color: white; }

@@ -21,10 +21,11 @@
                     <option value="">Loading profiles...</option>
                 </select>
                 <button id="manage-profiles-btn" class="btn btn-secondary" title="Manage profiles">⚙️</button>
+                <button id="provider-policies-btn" class="btn btn-secondary" title="Configure provider policies">📊 Policies</button>
             </div>
             <div class="actions">
-                <button id="undo-btn" class="btn btn-text" disabled>↩ Undo</button>
-                <button id="save-btn" class="btn btn-primary" disabled>💾 Save Changes</button>
+                <button id="undo-btn" class="btn btn-text" disabled>\u21a9\ufe0f Undo</button>
+                <button id="save-btn" class="btn btn-primary" disabled>\ud83d\udcbe Save Changes</button>
             </div>
         </header>
 
@@ -68,7 +69,11 @@
                     <button class="chip" data-filter="pdf" title="Models that accept PDF input">📄 PDF</button>
                     <button class="chip" data-filter="thinking" title="Models with extended thinking/thoughts">💭 Thinking</button>
                     <button class="chip" data-filter="fast" title="Fast/inexpensive models">⚡ Fast</button>
-                </div>
+                    
+                    <span class="chips-label">Billing:</span>
+                    <button class="chip" data-filter="subscription" title="Subscription-based pricing">🎫 Sub</button>
+                    <button class="chip" data-filter="metered" title="Pay-per-use (metered) pricing">💳 PayGo</button>
+                    <button class="chip" data-filter="free" title="Free to use">🆓 Free</button>
             </div>
 
             <div class="status-bar" id="status-bar">
