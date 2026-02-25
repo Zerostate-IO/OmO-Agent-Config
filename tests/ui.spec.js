@@ -240,6 +240,7 @@ test.describe('OmO Agent Config UI', () => {
     });
 
     // Navigate and refresh to trigger intercepted requests
+    // Navigate and refresh to trigger intercepted requests
     await testPage.goto('http://localhost:3456');
     await testPage.waitForLoadState('networkidle');
     await testPage.waitForTimeout(2000);
@@ -260,6 +261,7 @@ test.describe('OmO Agent Config UI', () => {
     
     // Take screenshot for verification
     await testPage.screenshot({ path: 'test-results/discouraged-model-warning-badge.png' });
+    await testPage.unrouteAll({ behavior: 'ignoreErrors' });
     await testPage.close();
   });
 
@@ -517,7 +519,8 @@ test.describe('OmO Agent Config UI', () => {
         await route.continue();
       }
     });
-    
+
+    // Navigate and refresh to trigger intercepted requests
     // Navigate and refresh to trigger intercepted requests
     await testPage.goto('http://localhost:3456');
     await testPage.waitForLoadState('networkidle');
@@ -548,6 +551,7 @@ test.describe('OmO Agent Config UI', () => {
     
     // Take screenshot for verification
     await testPage.screenshot({ path: 'test-results/billing-speed-badges-selector.png' });
+    await testPage.unrouteAll({ behavior: 'ignoreErrors' });
     await testPage.close();
   });
 
