@@ -82,6 +82,26 @@ async function getCommitSha() {
 }
 
 /**
+ * Get commit SHA from cached snapshot (fallback when API fails)
+ * @returns {string|null} Commit SHA or null
+ */
+function getCommitShaFromCache() {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+      const sha = cache?.sourceRef?.commitSha;
+      // Validate SHA is 40-hex (proper git SHA)
+      if (sha && /^[a-f0-9]{40}$/i.test(sha)) {
+        return sha;
+      }
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Parse TypeScript model requirements from upstream source
  * @param {string} content - TypeScript file content
  * @returns {Object} Parsed requirements
@@ -648,21 +668,30 @@ async function main() {
   // Handle --pin mode first (just pin the SHA and exit)
   if (pinMode) {
     try {
-      const currentSha = await getCommitSha();
+      let currentSha = await getCommitSha();
+      let shaSource = 'github-api';
+      
+      // Fallback to cached snapshot if API fails
+      if (!currentSha) {
+        currentSha = getCommitShaFromCache();
+        shaSource = 'cached-snapshot';
+      }
+      
       if (!currentSha) {
         if (jsonOutput) {
-          console.log(JSON.stringify({ error: 'Could not fetch current upstream SHA' }, null, 2));
+          console.log(JSON.stringify({ error: 'Could not fetch upstream SHA from API or cached snapshot' }, null, 2));
         } else {
-          console.error(`${colors.red}❌ Could not fetch current upstream SHA${colors.reset}`);
+          console.error(`${colors.red}\u274c Could not fetch upstream SHA from API or cached snapshot${colors.reset}`);
         }
         process.exit(2);
       }
       
       if (pinSha(currentSha)) {
         if (jsonOutput) {
-          console.log(JSON.stringify({ pinnedSha: currentSha, success: true }, null, 2));
+          console.log(JSON.stringify({ pinnedSha: currentSha, success: true, source: shaSource }, null, 2));
         } else {
-          console.log(`${colors.green}✅ Pinned upstream SHA: ${currentSha}${colors.reset}`);
+          console.log(`${colors.green}\u2705 Pinned upstream SHA: ${currentSha}${colors.reset}`);
+          console.log(`${colors.gray}   Source: ${shaSource}${colors.reset}`);
           console.log(`${colors.gray}   Written to: ${PINNED_SHA_FILE}${colors.reset}`);
         }
         process.exit(0);

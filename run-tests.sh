@@ -294,7 +294,12 @@ case $TEST_TYPE in
     # Backup and drift-check tests
     echo ""
     echo "=== Backup & Drift-Check Tests ==="
-    node tests/backup-drift-test.js || { echo "❌ Backup and drift-check tests failed"; exit 1; }
+    node tests/backup-drift-test.js || { echo "\u274c Backup and drift-check tests failed"; exit 1; }
+    
+    # Drift Pin Tests
+    echo ""
+    echo "=== Drift Pin Tests ==="
+    node tests/drift-pin-test.js || { echo "\u274c Drift pin tests failed"; exit 1; }
 
     echo ""
     echo "=== UI Tests ==="
