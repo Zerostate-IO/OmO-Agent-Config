@@ -346,4 +346,288 @@ test.describe('OmO Agent Config UI', () => {
     // Take screenshot
     await page.screenshot({ path: 'test-results/purge-preview-dialog.png' });
   });
+
+  test('Billing filter chips filter models by billingModel', async ({ page, context }) => {
+    // Create a new page to have clean state
+    const testPage = await context.newPage();
+    
+    // Intercept models API to return fixture with subscription and metered models
+    await testPage.route('**/api/models*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          models: [
+            {
+              id: 'test/subscription-model',
+              name: 'Test Subscription Model',
+              provider: 'TestProvider',
+              providerID: 'test',
+              context: 128000,
+              contextDisplay: '128K',
+              capabilities: {},
+              badges: [],
+              costDisplay: '$$',
+              billingModel: 'subscription'
+            },
+            {
+              id: 'test/metered-model',
+              name: 'Test Metered Model',
+              provider: 'TestProvider',
+              providerID: 'test',
+              context: 200000,
+              contextDisplay: '200K',
+              capabilities: {},
+              badges: [],
+              costDisplay: '$',
+              billingModel: 'metered'
+            },
+            {
+              id: 'test/free-model',
+              name: 'Test Free Model',
+              provider: 'TestProvider',
+              providerID: 'test',
+              context: 64000,
+              contextDisplay: '64K',
+              capabilities: {},
+              badges: [],
+              costDisplay: '',
+              billingModel: 'free'
+            }
+          ],
+          providers: ['TestProvider'],
+          total: 3,
+          cached: false,
+          fetchedAt: new Date().toISOString(),
+          hasDuplicates: false,
+          duplicateCount: 0
+        })
+      });
+    });
+    
+    // Navigate and wait for models to load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    
+    // Switch to Models view
+    await testPage.click('#view-models-btn');
+    await testPage.waitForTimeout(500);
+    
+    // Verify all 3 model cards are visible initially
+    let modelCards = await testPage.locator('.model-card');
+    let count = await modelCards.count();
+    expect(count).toBe(3);
+    
+    // Click "Sub" chip (data-filter="subscription")
+    const subChip = await testPage.locator('.chip[data-filter="subscription"]');
+    await subChip.click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify only subscription model is visible
+    modelCards = await testPage.locator('.model-card');
+    count = await modelCards.count();
+    expect(count).toBe(1);
+    await expect(testPage.locator('.model-card:has-text("Test Subscription Model")')).toBeVisible();
+    await expect(testPage.locator('.model-card:has-text("Test Metered Model")')).not.toBeVisible();
+    await expect(testPage.locator('.model-card:has-text("Test Free Model")')).not.toBeVisible();
+    
+    // Click "Sub" chip again to deselect
+    await subChip.click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify all 3 models visible again
+    modelCards = await testPage.locator('.model-card');
+    count = await modelCards.count();
+    expect(count).toBe(3);
+    
+    // Click "PayGo" chip (data-filter="metered")
+    const paygoChip = await testPage.locator('.chip[data-filter="metered"]');
+    await paygoChip.click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify only metered model is visible
+    modelCards = await testPage.locator('.model-card');
+    count = await modelCards.count();
+    expect(count).toBe(1);
+    await expect(testPage.locator('.model-card:has-text("Test Metered Model")')).toBeVisible();
+    await expect(testPage.locator('.model-card:has-text("Test Subscription Model")')).not.toBeVisible();
+    
+    // Take screenshot for verification
+    await testPage.screenshot({ path: 'test-results/billing-filter-metered.png' });
+    await testPage.close();
+  });
+
+  test('Billing and speed badges appear in agent model selector rows', async ({ page, context }) => {
+    // Create a new page to have clean state
+    const testPage = await context.newPage();
+    
+    // Intercept models API to inject test model with billingModel and speedTier
+    await testPage.route('**/*', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/api/models')) {
+        const response = await route.fetch();
+        const data = await response.json();
+        
+        // Inject a test model with metered billing and fast speed
+        data.models.unshift({
+          id: 'test/fast-metered-model',
+          name: 'Test Fast Metered Model',
+          provider: 'TestProvider',
+          providerID: 'test',
+          context: 200000,
+          contextDisplay: '200K',
+          capabilities: {},
+          badges: [],
+          costDisplay: '$',
+          billingModel: 'metered',
+          speedTier: 'fast'
+        });
+        data.total = data.models.length;
+        
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(data)
+        });
+      } else if (url.includes('/api/agents')) {
+        const response = await route.fetch();
+        const data = await response.json();
+        
+        // Find sisyphus agent and add our test model to recommendations
+        const sisyphusAgent = data.agents.find(a => a.name === 'sisyphus');
+        if (sisyphusAgent) {
+          if (!sisyphusAgent.recommendedModels) {
+            sisyphusAgent.recommendedModels = [];
+          }
+          sisyphusAgent.recommendedModels.unshift({
+            id: 'test/fast-metered-model',
+            name: 'Test Fast Metered Model',
+            score: 100,
+            provider: 'TestProvider',
+            provenance: 'heuristic'
+          });
+        }
+        
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(data)
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    
+    // Navigate and refresh to trigger intercepted requests
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    await testPage.click('#refresh-btn');
+    await testPage.waitForTimeout(2000);
+    
+    // Open model selector for sisyphus agent
+    await testPage.locator('button[onclick="changeAgentModel(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify modal is open
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    // Find model button for fast-metered model and assert badges (use .first() to handle duplicates)
+    const fastMeteredBtn = await testPage.locator('.model-select-btn:has-text("Test Fast Metered Model")').first();
+    await expect(fastMeteredBtn).toBeVisible();
+    
+    // Assert PAY billing badge is visible inside the button
+    const payBadge = await fastMeteredBtn.locator('.billing-pay');
+    await expect(payBadge).toBeVisible();
+    await expect(payBadge).toHaveText('PAY');
+    
+    // Assert speed-fast badge (⚡) is visible inside the button
+    const speedBadge = await fastMeteredBtn.locator('.speed-fast');
+    await expect(speedBadge).toBeVisible();
+    
+    // Take screenshot for verification
+    await testPage.screenshot({ path: 'test-results/billing-speed-badges-selector.png' });
+    await testPage.close();
+  });
+
+  test('Provider Policies modal renders notes input and saves notes in POST', async ({ page, context }) => {
+    // Create a new page to have clean state
+    const testPage = await context.newPage();
+    
+    // Stub providers API GET
+    await testPage.route('**/api/providers*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            providers: {
+              'test-provider': {
+                billingModel: 'metered',
+                speedTier: 'normal',
+                priorityTier: 50,
+                notes: 'Existing note'
+              },
+              'other-provider': {
+                billingModel: 'subscription',
+                speedTier: 'fast',
+                priorityTier: 10,
+                notes: ''
+              }
+            }
+          })
+        });
+      } else if (route.request().method() === 'POST') {
+        // Capture POST payload for assertion
+        const postData = route.request().postDataJSON();
+        
+        // Verify notes is included in the POST payload
+        expect(postData.providers).toBeDefined();
+        expect(postData.providers['test-provider']).toBeDefined();
+        expect(postData.providers['test-provider'].notes).toBe('Updated test notes');
+        
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true })
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    
+    // Navigate and wait for load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1000);
+    
+    // Click provider policies button
+    const providerPoliciesBtn = await testPage.locator('#provider-policies-btn');
+    await expect(providerPoliciesBtn).toBeVisible();
+    await providerPoliciesBtn.click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify modal is open
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    // Verify notes input field exists for test-provider
+    const notesInput = await testPage.locator('#policy-test-provider-notes');
+    await expect(notesInput).toBeVisible();
+    await expect(notesInput).toHaveValue('Existing note');
+    
+    // Update notes value
+    await notesInput.fill('Updated test notes');
+    // Click Save Changes button in Provider Policies modal (specific to avoid matching main UI button)
+    const saveBtn = await testPage.locator('button[onclick="saveProviderPolicies()"]');
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+    // Wait for save to complete
+    await testPage.waitForTimeout(500);
+    
+    // Take screenshot for verification
+    await testPage.screenshot({ path: 'test-results/provider-policies-notes.png' });
+    await testPage.close();
+  });
 });
