@@ -301,6 +301,11 @@ case $TEST_TYPE in
     echo "=== Drift Pin Tests ==="
     node tests/drift-pin-test.js || { echo "\u274c Drift pin tests failed"; exit 1; }
 
+    # Provider Policy Tests
+    echo ""
+    echo "=== Provider Policy Tests ==="
+    node tests/provider-policy-test.js || { echo "❌ Provider policy tests failed"; exit 1; }
+
     echo ""
     echo "=== UI Tests ==="
     npx playwright test tests/ui.spec.js
