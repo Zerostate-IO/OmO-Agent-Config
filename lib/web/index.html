@@ -12,10 +12,7 @@
             <div class="logo">
                 <h1>OmO Agent Config</h1>
             </div>
-            <div class="view-switcher">
-                <button id="view-models-btn" class="btn btn-secondary">🔍 Models</button>
-                <button id="view-agents-btn" class="btn btn-secondary active">🤖 Agents</button>
-            </div>
+
             <div class="profile-selector">
                 <select id="profile-select">
                     <option value="">Loading profiles...</option>
@@ -30,58 +27,8 @@
         </header>
 
         <main class="app-main">
-            <div class="filters-section">
-                <div class="filters-bar">
-                    <div class="search-wrapper">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" id="search-input" placeholder="Search 200+ models (e.g., 'opus', 'claude', 'gpt')..." class="search-input">
-                    </div>
-                    
-                    <div class="filter-controls">
-                        <select id="provider-filter" class="filter-select">
-                            <option value="">All Providers</option>
-                        </select>
-                        
-                        <select id="context-filter" class="filter-select">
-                            <option value="">All Context Sizes</option>
-                            <option value="128000">128K+</option>
-                            <option value="200000">200K+</option>
-                            <option value="500000">500K+</option>
-                        </select>
-                        
-                        <select id="sort-by" class="filter-select">
-                            <option value="smart">🧠 Smart Sort</option>
-                            <option value="name">Name (A-Z)</option>
-                            <option value="cost">💰 Cheapest First</option>
-                            <option value="context">📏 Largest Context</option>
-                            <option value="provider">Provider</option>
-                        </select>
-                        
-                        <button id="clear-filters" class="btn btn-text" title="Clear all filters">Clear</button>
-                        <button id="refresh-btn" class="btn btn-secondary" title="Refresh model list">🔄 Refresh</button>
-                    </div>
-                </div>
-                
-                <div class="filter-chips" id="filter-chips">
-                    <span class="chips-label">Capabilities:</span>
-                    <button class="chip" data-filter="reasoning" title="Models with reasoning capability">🧠 Reasoning</button>
-                    <button class="chip" data-filter="image" title="Models that accept image input">🖼️ Image</button>
-                    <button class="chip" data-filter="pdf" title="Models that accept PDF input">📄 PDF</button>
-                    <button class="chip" data-filter="thinking" title="Models with extended thinking/thoughts">💭 Thinking</button>
-                    <button class="chip" data-filter="fast" title="Fast/inexpensive models">⚡ Fast</button>
-                    
-                    <span class="chips-label">Billing:</span>
-                    <button class="chip" data-filter="subscription" title="Subscription-based pricing">🎫 Sub</button>
-                    <button class="chip" data-filter="metered" title="Pay-per-use (metered) pricing">💳 PayGo</button>
-                    <button class="chip" data-filter="free" title="Free to use">🆓 Free</button>
-            </div>
-
             <div class="status-bar" id="status-bar">
-                <span class="loading">Loading models...</span>
-            </div>
-
-            <div class="models-grid hidden" id="models-grid">
-                <!-- Models will be rendered here -->
+                <span class="loading">Loading...</span>
             </div>
 
             <div class="agents-grid" id="agents-grid">
@@ -90,9 +37,6 @@
         </main>
 
         <footer class="app-footer">
-            <div class="footer-left">
-                <span id="models-count">0 models</span>
-            </div>
             <div class="footer-right">
                 <span id="last-updated">Never updated</span>
             </div>
