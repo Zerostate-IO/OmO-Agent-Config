@@ -1713,3 +1713,251 @@ body {
 .provenance-badge:hover {
     opacity: 1;
 }
+
+/* Provider Diagnostics Modal Styles */
+.diagnostics-modal-content {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.diagnostics-timestamp {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+    font-style: italic;
+}
+
+.diagnostics-section {
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.diagnostics-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.diagnostics-section h3 {
+    color: var(--color-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+}
+
+.diagnostics-section h4 {
+    color: var(--color-text);
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+}
+
+.diagnostics-sources {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+.diagnostics-source-group {
+    background-color: var(--color-bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius);
+}
+
+.diagnostics-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.diagnostics-list li {
+    padding: var(--spacing-xs) 0;
+    font-size: 0.85rem;
+}
+
+.provider-name {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.model-count, .agent-count {
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+}
+
+.discovered-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.discovered-item {
+    background-color: var(--color-bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.diagnostics-empty {
+    color: var(--color-text-secondary);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+.mismatch-category {
+    margin-bottom: var(--spacing-md);
+}
+
+.mismatch-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+}
+
+.mismatch-title.missing {
+    color: var(--color-error);
+}
+
+.mismatch-title.unexpected {
+    color: var(--color-warning);
+}
+
+.mismatch-title.alias {
+    color: var(--color-secondary);
+}
+
+.mismatch-list {
+    background-color: var(--color-bg);
+    padding: var(--spacing-xs);
+    border-radius: var(--radius);
+}
+
+.mismatch-item {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    margin-bottom: 1px;
+}
+
+.mismatch-item.missing {
+    background-color: rgba(214, 48, 49, 0.1);
+    color: var(--color-error);
+}
+
+.mismatch-item.unexpected {
+    background-color: rgba(253, 203, 110, 0.1);
+    color: #8b5cf6;
+}
+
+.mismatch-item.alias {
+    background-color: rgba(0, 212, 170, 0.05);
+}
+
+.alias-from {
+    color: var(--color-text-secondary);
+    text-decoration: line-through;
+}
+
+.alias-to {
+    color: var(--color-success);
+    font-weight: 500;
+}
+
+.cache-status {
+    background-color: var(--color-bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+}
+
+.cache-exists {
+    color: var(--color-success);
+}
+
+.cache-missing {
+    color: var(--color-warning);
+}
+
+.cache-timestamp, .cache-age {
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.diagnostics-policy {
+    background-color: var(--color-bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius);
+}
+
+.policy-item {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    background-color: var(--color-bg-tertiary);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.policy-reason {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.diagnostics-hints {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background-color: var(--color-bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius);
+}
+
+.hint-item {
+    padding: 8px 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.hint-item:last-child {
+    border-bottom: none;
+}
+
+.diagnostics-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+
+
+/* Provider Diagnostics Banner */
+.diagnostics-banner {
+    background: #fff3cd;
+    border-bottom: 1px solid #ffc107;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.diagnostics-banner.hidden {
+    display: none;
+}
+.diagnostics-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 1200px;
+    width: 100%;
+}
+.diagnostics-banner-icon {
+    font-size: 1.2rem;
+}
+.diagnostics-banner-text {
+    flex: 1;
+}
+.view-details-btn {
+    flex-shrink: 0;
+}

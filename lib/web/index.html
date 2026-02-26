@@ -19,16 +19,28 @@
                 </select>
                 <button id="manage-profiles-btn" class="btn btn-secondary" title="Manage profiles">⚙️</button>
                 <button id="provider-policies-btn" class="btn btn-secondary" title="Configure provider policies">📊 Policies</button>
+                <button id="provider-diagnostics-btn" class="btn btn-secondary" title="View provider diagnostics">🔍 Diagnostics</button>
             </div>
             <div class="actions">
-                <button id="undo-btn" class="btn btn-text" disabled>\u21a9\ufe0f Undo</button>
-                <button id="save-btn" class="btn btn-primary" disabled>\ud83d\udcbe Save Changes</button>
+                <button id="undo-btn" class="btn btn-text" disabled>↩️ Undo</button>
+                <button id="save-btn" class="btn btn-primary" disabled>💾 Save Changes</button>
             </div>
         </header>
 
         <main class="app-main">
             <div class="status-bar" id="status-bar">
                 <span class="loading">Loading...</span>
+            </div>
+
+            <!-- Provider Diagnostics Banner -->
+            <div id="provider-diagnostics-banner" class="diagnostics-banner hidden">
+                <div class="diagnostics-banner-content">
+                    <span class="diagnostics-banner-icon">⚠️</span>
+                    <span class="diagnostics-banner-text">
+                        <span class="banner-summary">Provider configuration mismatch detected.</span>
+                    </span>
+                    <button class="btn btn-secondary btn-small view-details-btn">View Details</button>
+                </div>
             </div>
 
             <div class="agents-grid" id="agents-grid">
