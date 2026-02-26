@@ -66,6 +66,22 @@ If it **does** show there but the UI still looks stale:
 
 Note: model results are cached under `~/.config/opencode/cache/models-cache.json`.
 
+### LM Studio Models Not Appearing
+
+**Status:** LM Studio custom detection is **not implemented**.
+
+This tool surfaces models only through `opencode models --verbose`. If LM Studio models
+are not appearing:
+
+1. Verify LM Studio is running and has models loaded
+2. Check that OpenCode CLI is configured to use LM Studio
+3. Run `opencode models --verbose` to see what OpenCode discovers
+4. This tool does **not** probe `localhost:1234` directly
+
+The model discovery path is entirely CLI-driven. This tool is a configuration UI,
+not a model discovery engine. No custom localhost probing is implemented for LM Studio
+or any other local inference server.
+
 ## Config files
 
 - Active config (Oh My OpenCode reads): `~/.config/opencode/oh-my-opencode.jsonc`

@@ -10,23 +10,23 @@
 Full custom agent support with system prompts, templates, and validation.
 See `docs/CUSTOM-AGENTS.md` for complete specification.
 
-### LMstudio Model Support
-**Status:** Blocked - requires OpenCode plugin investigation
-**Priority:** Medium
-**Effort:** Medium
+### LM Studio Model Support
+**Status:** Explicitly deferred - not implemented
+**Priority:** Low (de-scoped)
+**Effort:** N/A
 
-**Issue**: LMstudio plugin initializes but models don't appear in `opencode models` output
+**Policy:** This tool does **not** implement custom LM Studio detection. All model discovery
+flows through `opencode models --verbose` only.
 
-**Details**:
-- LMstudio is running with models loaded (confirmed via http://localhost:1234/v1/models)
-- Plugin shows `[opencode-lmstudio] LM Studio plugin initialized` 
-- However, no lmstudio-prefixed models appear in the model list
+**What this means:**
+- No direct probing of `localhost:1234` or LM Studio API
+- If LM Studio models don't appear, the issue is in OpenCode CLI configuration
+- Users should verify `opencode models --verbose` shows their models
+- This tool will not add LM Studio-specific detection code
 
-**Possible Solutions**:
-1. Investigate if opencode-lmstudio plugin needs additional configuration
-2. Check if there's a different command to query plugin-provided models
-3. Add manual LMstudio model support (allow users to manually add models)
-4. Work with OpenCode team to fix plugin integration
+**Historical note:** Earlier TODO items referenced plugin investigation, but this has
+been explicitly de-scoped. The tool's role is configuration UI, not model discovery.
+
 
 ### TUI Framework Upgrade
 **Status:** Obsolete - web UI replaced the legacy readline TUI
