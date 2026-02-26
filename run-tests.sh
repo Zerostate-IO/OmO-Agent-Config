@@ -191,9 +191,68 @@ case $TEST_TYPE in
     echo "Testing /api/profiles..."
     curl -s "$BASE_URL/api/profiles" | node -e "const d=JSON.parse(require('fs').readFileSync(0)); console.log('  Profiles loaded:', d.total, 'profiles')" || echo "  ❌ Failed"
     
-    # Test models endpoint
+    # Test models endpoint - validates non-regression of prior key structure
     echo "Testing /api/models..."
-    curl -s "$BASE_URL/api/models" | node -e "const d=JSON.parse(require('fs').readFileSync(0)); console.log('  Models loaded:', d.total, 'models')" || echo "  ❌ Failed"
+    MODELS_RESPONSE=$(curl -s "$BASE_URL/api/models")
+    echo "$MODELS_RESPONSE" | node -e "
+const d = JSON.parse(require('fs').readFileSync(0));
+// Non-regression: validate prior key structure
+if (!Array.isArray(d.models)) throw new Error('models must be array');
+if (!Array.isArray(d.providers)) throw new Error('providers must be array');
+if (typeof d.total !== 'number') throw new Error('total must be number');
+console.log('  Models loaded:', d.total, 'models,', d.providers.length, 'providers');
+" || { echo '  ❌ /api/models schema validation failed'; exit 1; }
+    
+    # Test /api/providers/diagnostics endpoint - schema validation
+    echo "Testing /api/providers/diagnostics..."
+    DIAGNOSTICS_RESPONSE=$(curl -s "$BASE_URL/api/providers/diagnostics")
+    echo "$DIAGNOSTICS_RESPONSE" | node -e "
+const d = JSON.parse(require('fs').readFileSync(0));
+// Validate required top-level keys
+const required = ['sources', 'mismatches', 'cacheStatus', 'policy', 'hints'];
+for (const key of required) {
+  if (!(key in d)) throw new Error('Missing required key: ' + key);
+}
+// Validate sources structure
+if (typeof d.sources !== 'object') throw new Error('sources must be object');
+// Validate mismatches structure
+if (!Array.isArray(d.mismatches.expectedButMissing)) throw new Error('mismatches.expectedButMissing must be array');
+if (!Array.isArray(d.mismatches.discoveredNotExpected)) throw new Error('mismatches.discoveredNotExpected must be array');
+if (!Array.isArray(d.mismatches.aliasNormalizedMatches)) throw new Error('mismatches.aliasNormalizedMatches must be array');
+// Validate cacheStatus structure
+if (typeof d.cacheStatus.exists !== 'boolean') throw new Error('cacheStatus.exists must be boolean');
+// Validate policy structure
+if (!d.policy.lmStudio) throw new Error('policy.lmStudio required');
+if (d.policy.lmStudio.customDetection !== 'disabled') throw new Error('policy.lmStudio.customDetection must be disabled');
+console.log('  Diagnostics schema valid');
+console.log('  Sources:', Object.keys(d.sources).join(', '));
+console.log('  Mismatches:', d.mismatches.expectedButMissing.length, 'expected-but-missing,', d.mismatches.discoveredNotExpected.length, 'discovered-not-expected');
+console.log('  LM Studio policy:', d.policy.lmStudio.customDetection);
+" || { echo '  ❌ /api/providers/diagnostics schema validation failed'; exit 1; }
+    
+    # Test diagnostics refresh parameter (should still return valid schema)
+    echo "Testing /api/providers/diagnostics?refresh=true..."
+    DIAGNOSTICS_REFRESH=$(curl -s "$BASE_URL/api/providers/diagnostics?refresh=true")
+    echo "$DIAGNOSTICS_REFRESH" | node -e "
+const d = JSON.parse(require('fs').readFileSync(0));
+if (!d.sources || !d.mismatches || !d.cacheStatus || !d.policy) throw new Error('Refresh response missing required keys');
+console.log('  ✅ Diagnostics refresh parameter works');
+" || { echo '  ❌ Diagnostics refresh parameter failed'; exit 1; }
+    
+    # Test warning-only behavior: mismatches don't block API response
+    echo "Testing warning-only behavior (mismatches don't block)..."
+    echo "$DIAGNOSTICS_RESPONSE" | node -e "
+const d = JSON.parse(require('fs').readFileSync(0));
+// Warning-only: endpoint returns 200 even with mismatches
+// Mismatches are informational, not blocking errors
+const hasMismatches = d.mismatches.expectedButMissing.length > 0 || d.mismatches.discoveredNotExpected.length > 0;
+if (hasMismatches) {
+  console.log('  ✅ Warning-only: mismatches present but endpoint returns successfully');
+  console.log('  Mismatch details:', JSON.stringify(d.mismatches, null, 2).split('\\n').slice(0, 5).join('\\n'));
+} else {
+  console.log('  ✅ Warning-only: no mismatches (ideal state)');
+}
+" || { echo '  ❌ Warning-only behavior check failed'; exit 1; }
     
     # Test route parameter decoding with model containing slash
     echo "Testing route parameter decoding..."

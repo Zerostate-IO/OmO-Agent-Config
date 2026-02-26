@@ -635,3 +635,329 @@ test.describe('OmO Agent Config UI', () => {
     await testPage.close();
   });
 });
+
+  // ===========================================
+  // Provider Diagnostics Banner + Modal Tests
+  // ===========================================
+
+  test('Provider diagnostics banner visible when expectedButMissing has entries', async ({ page, context }) => {
+    // Create a new page for clean state
+    const testPage = await context.newPage();
+    
+    // Stub diagnostics API with fixture containing expectedButMissing
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: {
+            fromConfig: { 'test-provider': 5 },
+            fromAssignments: {}
+          },
+          normalized: {
+            discovered: []
+          },
+          mismatches: {
+            expectedButMissing: ['test-provider'],
+            discoveredNotExpected: [],
+            aliasNormalizedMatches: []
+          },
+          cacheStatus: {
+            exists: false
+          },
+          policy: {
+            lmStudio: {
+              customDetection: false
+            }
+          },
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+    
+    // Navigate and wait for load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500); // Wait for diagnostics to load
+    
+    // Verify banner is visible
+    const banner = await testPage.locator('#provider-diagnostics-banner');
+    await expect(banner).toBeVisible();
+    await expect(banner).not.toHaveClass(/hidden/);
+    
+    // Verify banner contains expected text
+    const bannerSummary = await banner.locator('.banner-summary');
+    await expect(bannerSummary).toContainText('1 provider mismatch');
+    await expect(bannerSummary).toContainText('test-provider');
+    
+    // Take screenshot for evidence
+    await testPage.screenshot({ path: 'test-results/provider-diagnostics-banner-visible.png' });
+    await testPage.close();
+  });
+
+  test('Provider diagnostics modal shows full details with LM Studio policy', async ({ page, context }) => {
+    // Create a new page for clean state
+    const testPage = await context.newPage();
+    
+    // Stub diagnostics API with comprehensive fixture
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: {
+            fromConfig: { 'openai': 10, 'anthropic': 5 },
+            fromAssignments: { 'openai': ['sisyphus', 'oracle'] }
+          },
+          normalized: {
+            discovered: ['openai', 'test-provider']
+          },
+          mismatches: {
+            expectedButMissing: ['anthropic'],
+            discoveredNotExpected: ['test-provider'],
+            aliasNormalizedMatches: [{ from: 'fireworks', to: 'fireworks-ai' }]
+          },
+          cacheStatus: {
+            exists: true,
+            timestamp: Date.now() - 3600000, // 1 hour ago
+            ageMs: 3600000
+          },
+          policy: {
+            lmStudio: {
+              customDetection: false,
+              reason: 'LM Studio models are discovered via opencode CLI only'
+            }
+          },
+          hints: ['Run opencode models --verbose to refresh the cache'],
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+    
+    // Navigate and wait for load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+    
+    // Click View Details button on banner (banner should be visible)
+    const banner = await testPage.locator('#provider-diagnostics-banner');
+    await expect(banner).toBeVisible();
+    
+    const viewDetailsBtn = await banner.locator('.view-details-btn');
+    await viewDetailsBtn.click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify modal is open
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    // Verify modal title
+    const modalTitle = await testPage.locator('#modal-title');
+    await expect(modalTitle).toHaveText('Provider Diagnostics');
+    
+    // Verify Expected Sources section exists
+    const expectedSourcesHeading = await testPage.locator('h3:has-text("Expected Sources")');
+    await expect(expectedSourcesHeading).toBeVisible();
+    
+    // Verify From Config shows providers
+    const fromConfigHeading = await testPage.locator('h4:has-text("From Config")');
+    await expect(fromConfigHeading).toBeVisible();
+    
+    // Verify Discovered Providers section
+    const discoveredHeading = await testPage.locator('h3:has-text("Discovered Providers")');
+    await expect(discoveredHeading).toBeVisible();
+    
+    // Verify Mismatches section with Expected but Missing
+    const mismatchesHeading = await testPage.locator('h3:has-text("Mismatches")');
+    await expect(mismatchesHeading).toBeVisible();
+    const missingTitle = await testPage.locator('h4.mismatch-title.missing:has-text("Expected but Missing")');
+    await expect(missingTitle).toBeVisible();
+    
+    // Verify LM Studio Policy section with disabled detection
+    const lmStudioHeading = await testPage.locator('h3:has-text("LM Studio Policy")');
+    await expect(lmStudioHeading).toBeVisible();
+    
+    // Verify the policy shows custom detection disabled (check for text content)
+    const policyItem = await testPage.locator('.diagnostics-policy .policy-item');
+    await expect(policyItem).toBeVisible();
+    await expect(policyItem).toContainText('disabled');
+    
+    // Verify policy reason is shown
+    const policyReason = await testPage.locator('.diagnostics-policy .policy-reason');
+    await expect(policyReason).toBeVisible();
+    await expect(policyReason).toContainText('CLI');
+    
+    // Verify Cache Status section
+    const cacheHeading = await testPage.locator('h3:has-text("Cache Status")');
+    await expect(cacheHeading).toBeVisible();
+    const cacheExists = await testPage.locator('.cache-status .cache-exists');
+    await expect(cacheExists).toBeVisible();
+    
+    // Take screenshot for evidence
+    await testPage.screenshot({ path: 'test-results/provider-diagnostics-modal-details.png' });
+    await testPage.close();
+  });
+
+  test('No mismatches keeps provider diagnostics banner hidden', async ({ page, context }) => {
+    // Create a new page for clean state
+    const testPage = await context.newPage();
+    
+    // Stub diagnostics API with empty mismatches (all good state)
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: {
+            fromConfig: { 'openai': 10 },
+            fromAssignments: { 'openai': ['sisyphus'] }
+          },
+          normalized: {
+            discovered: ['openai']
+          },
+          mismatches: {
+            expectedButMissing: [], // Empty - no mismatches
+            discoveredNotExpected: [],
+            aliasNormalizedMatches: []
+          },
+          cacheStatus: {
+            exists: true,
+            timestamp: Date.now(),
+            ageMs: 0
+          },
+          policy: {
+            lmStudio: {
+              customDetection: false
+            }
+          },
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+    
+    // Navigate and wait for load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+    
+    // Verify banner is hidden
+    const banner = await testPage.locator('#provider-diagnostics-banner');
+    await expect(banner).toHaveClass(/hidden/);
+    await expect(banner).not.toBeVisible();
+    
+    // Verify page remains fully usable - agents grid should be visible
+    const agentsGrid = await testPage.locator('#agents-grid');
+    await expect(agentsGrid).toBeVisible();
+    
+    // Take screenshot for evidence
+    await testPage.screenshot({ path: 'test-results/provider-diagnostics-banner-hidden.png' });
+    await testPage.close();
+  });
+
+  test('Provider diagnostics button in header opens modal', async ({ page, context }) => {
+    // Create a new page for clean state
+    const testPage = await context.newPage();
+    
+    // Stub diagnostics API
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: { fromConfig: {}, fromAssignments: {} },
+          normalized: { discovered: [] },
+          mismatches: {
+            expectedButMissing: [],
+            discoveredNotExpected: [],
+            aliasNormalizedMatches: []
+          },
+          cacheStatus: { exists: false },
+          policy: { lmStudio: { customDetection: false } },
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+    
+    // Navigate and wait for load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1000);
+    
+    // Click the Diagnostics button in header
+    const diagnosticsBtn = await testPage.locator('#provider-diagnostics-btn');
+    await expect(diagnosticsBtn).toBeVisible();
+    await diagnosticsBtn.click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify modal opens with Provider Diagnostics title
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    const modalTitle = await testPage.locator('#modal-title');
+    await expect(modalTitle).toHaveText('Provider Diagnostics');
+    
+    // Take screenshot
+    await testPage.screenshot({ path: 'test-results/provider-diagnostics-button-modal.png' });
+    await testPage.close();
+  });
+
+  test('LM Studio policy shows disabled state correctly in modal', async ({ page, context }) => {
+    // Create a new page for clean state
+    const testPage = await context.newPage();
+    
+    // Stub diagnostics API with explicit LM Studio policy disabled
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: { fromConfig: {}, fromAssignments: {} },
+          normalized: { discovered: [] },
+          mismatches: {
+            expectedButMissing: ['some-provider'], // Trigger banner
+            discoveredNotExpected: [],
+            aliasNormalizedMatches: []
+          },
+          cacheStatus: { exists: true, timestamp: Date.now(), ageMs: 1000 },
+          policy: {
+            lmStudio: {
+              customDetection: false,
+              reason: 'Models only surface via opencode models --verbose. No localhost:1234 probing.'
+            }
+          },
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+    
+    // Navigate and wait for load
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+    
+    // Click View Details on banner
+    const banner = await testPage.locator('#provider-diagnostics-banner');
+    await expect(banner).toBeVisible();
+    await banner.locator('.view-details-btn').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify LM Studio Policy section is present
+    const lmStudioSection = await testPage.locator('h3:has-text("LM Studio Policy")');
+    await expect(lmStudioSection).toBeVisible();
+    
+    // Verify the policy item shows disabled state
+    const policyItem = await testPage.locator('.diagnostics-policy .policy-item');
+    await expect(policyItem).toBeVisible();
+    const policyText = await policyItem.textContent();
+    expect(policyText.toLowerCase()).toContain('disabled');
+    
+    // Verify the policy reason mentions CLI
+    const policyReason = await testPage.locator('.diagnostics-policy .policy-reason');
+    await expect(policyReason).toBeVisible();
+    const reasonText = await policyReason.textContent();
+    expect(reasonText.toLowerCase()).toContain('localhost');
+    
+    // Take screenshot
+    await testPage.screenshot({ path: 'test-results/provider-diagnostics-lmstudio-policy.png' });
+    await testPage.close();
+  }); 
