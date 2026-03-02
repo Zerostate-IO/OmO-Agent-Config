@@ -1961,3 +1961,337 @@ body {
 .view-details-btn {
     flex-shrink: 0;
 }
+
+/* Fallback Editor Styles */
+.fallback-chain-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.fallback-chain-header h4 {
+    margin: 0;
+}
+
+.fallback-editor {
+    padding: var(--spacing-md);
+}
+
+.fallback-editor-loading {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-text-secondary);
+}
+
+.fallback-editor-error {
+    text-align: center;
+    padding: var(--spacing-lg);
+}
+
+.fallback-editor-error .error-message {
+    color: var(--color-error);
+    font-family: monospace;
+    margin-top: var(--spacing-sm);
+}
+
+.fallback-editor-header {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.fallback-source-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.fallback-source-badge[data-source="override"] {
+    background: var(--color-secondary);
+    color: white;
+}
+
+.fallback-source-badge[data-source="upstream"] {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+}
+
+.fallback-editor-content {
+    margin-bottom: var(--spacing-lg);
+}
+
+.fallback-chain-preview ol {
+    margin: var(--spacing-sm) 0 var(--spacing-md) var(--spacing-lg);
+}
+
+.fallback-chain-preview li {
+    padding: var(--spacing-xs) 0;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.no-fallback {
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+.fallback-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+}
+
+/* ===========================================
+   Fallback Editor Modal Styles
+   =========================================== */
+
+.fallback-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.fallback-loading,
+.fallback-error {
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.fallback-error {
+    color: var(--color-error);
+}
+
+.fallback-source-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--color-bg);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+}
+
+.fallback-source-badge .source-label {
+    color: var(--color-text-secondary);
+}
+
+.fallback-source-badge .source-value {
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.fallback-source-badge .source-value.override {
+    color: var(--color-secondary);
+}
+
+.fallback-source-badge .source-value.upstream {
+    color: var(--color-text-secondary);
+}
+
+.fallback-source-badge .changes-indicator {
+    color: var(--color-warning);
+    font-size: 0.8rem;
+}
+
+.fallback-validation-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: rgba(253, 203, 110, 0.1);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius);
+    color: var(--color-warning);
+    font-size: 0.9rem;
+}
+
+.fallback-validation-banner .validation-icon {
+    font-size: 1rem;
+}
+
+.fallback-entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    max-height: 400px;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.fallback-empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+.fallback-entry {
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--spacing-md);
+}
+
+.fallback-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.fallback-rank {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--color-primary);
+    min-width: 30px;
+}
+
+.fallback-entry-controls {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.fallback-entry-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+}
+
+.fallback-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fallback-field:nth-child(3) {
+    grid-column: span 2;
+}
+
+.fallback-field label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.fallback-field .field-hint {
+    font-weight: 400;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+}
+
+.fallback-input {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.fallback-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.fallback-input.has-error {
+    border-color: var(--color-error);
+}
+
+.field-error {
+    font-size: 0.75rem;
+    color: var(--color-error);
+}
+
+.fallback-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.fallback-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-md);
+}
+
+/* Icon button styles */
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-icon:hover:not(:disabled) {
+    background-color: var(--color-border);
+}
+
+.btn-icon:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.btn-icon.btn-danger {
+    color: var(--color-error);
+}
+
+.btn-icon.btn-danger:hover:not(:disabled) {
+    background-color: rgba(214, 48, 49, 0.2);
+    border-color: var(--color-error);
+}
+
+/* Fallback chain header with edit button */
+.fallback-chain-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.fallback-chain-header h4 {
+    margin: 0;
+}
+
+/* Scrollbar styling for fallback entries list */
+.fallback-entries-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.fallback-entries-list::-webkit-scrollbar-track {
+    background: var(--color-bg-secondary);
+    border-radius: 4px;
+}
+
+.fallback-entries-list::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+.fallback-entries-list::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
+}
