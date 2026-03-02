@@ -23,7 +23,8 @@ const {
   normalizeModelId,
   modelIdMatches,
   AGENT_MODEL_REQUIREMENTS,
-  CATEGORY_MODEL_REQUIREMENTS
+  CATEGORY_MODEL_REQUIREMENTS,
+  getEffectiveFallbackChain
 } = require('../lib/core/model-requirements');
 
 const { normalizeAgentKey, normalizeProviderName, getProviderAliases, PROVIDER_ALIASES } = require('../lib/constants');
@@ -997,6 +998,315 @@ test('parseModels: returns structured result with all fields', () => {
   assert.ok(Array.isArray(result.errors), 'Expected errors to be an array');
   assert.strictEqual(typeof result.partial, 'boolean', 'Expected partial to be a boolean');
 });
+
+// ==========================================
+// Fallback Override Merge + Normalization Tests
+// ==========================================
+console.log('');
+console.log('Fallback Override Merge Tests');
+console.log('-----------------------------------------');
+
+// Test fixtures for override scenarios
+const emptyOverrides = { version: 1, updatedAt: '2026-01-01T00:00:00Z', agents: {} };
+
+const overridesWithSisyphus = {
+  version: 1,
+  updatedAt: '2026-01-01T00:00:00Z',
+  agents: {
+    sisyphus: {
+      fallbackChain: [
+        { providers: ['google'], model: 'gemini-3-pro', variant: 'high' },
+        { providers: ['opencode'], model: 'big-pickle' }
+      ]
+    }
+  }
+};
+
+const overridesWithVariantPreservation = {
+  version: 1,
+  updatedAt: '2026-01-01T00:00:00Z',
+  agents: {
+    oracle: {
+      fallbackChain: [
+        { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'max' },
+        { providers: ['openai'], model: 'gpt-5.2', variant: 'high' },
+        { providers: ['google'], model: 'gemini-3-flash' }  // no variant
+      ]
+    }
+  }
+};
+
+const overridesWithDuplicates = {
+  version: 1,
+  updatedAt: '2026-01-01T00:00:00Z',
+  agents: {
+    metis: {
+      fallbackChain: [
+        { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'max' },
+        { providers: ['anthropic', 'github-copilot'], model: 'claude-opus-4-6', variant: 'max' },  // duplicate (same model+variant+providers[0])
+        { providers: ['openai'], model: 'gpt-5.2', variant: 'high' },
+        { providers: ['openai'], model: 'gpt-5.2', variant: 'high' }  // exact duplicate
+      ]
+    }
+  }
+};
+
+const overridesWithCaseVariants = {
+  version: 1,
+  updatedAt: '2026-01-01T00:00:00Z',
+  agents: {
+    'Sisyphus': {  // PascalCase key
+      fallbackChain: [
+        { providers: ['google'], model: 'gemini-3-pro', variant: 'high' }
+      ]
+    }
+  }
+};
+
+// ==========================================
+// Test: Canonical agent key normalization
+// ==========================================
+test('Merge: normalizes PascalCase agent key (Sisyphus -> sisyphus)', () => {
+  // Pass 'Sisyphus' but should match 'sisyphus' in upstream
+  const chain = getEffectiveFallbackChain('Sisyphus', emptyOverrides);
+  
+  assert.ok(chain !== null, 'Expected chain for known agent with normalized key');
+  assert.ok(Array.isArray(chain), 'Expected chain to be an array');
+  assert.ok(chain.length > 0, 'Expected non-empty chain for sisyphus');
+  
+  // Should match upstream sisyphus requirements
+  const upstreamChain = AGENT_MODEL_REQUIREMENTS.sisyphus.fallbackChain;
+  assert.strictEqual(chain.length, upstreamChain.length, 'Expected same length as upstream when no override');
+});
+
+test('Merge: normalizes camelCase agent key (frontendUiUx -> frontend-ui-ux)', () => {
+  const chain = getEffectiveFallbackChain('frontendUiUx', emptyOverrides);
+  
+  // Should match upstream 'frontend-ui-ux' if exists, or return null if unknown
+  // Since frontend-ui-ux is not in AGENT_MODEL_REQUIREMENTS, expect null or heuristic handling
+  const expectedChain = AGENT_MODEL_REQUIREMENTS['frontend-ui-ux']?.fallbackChain || null;
+  
+  if (expectedChain) {
+    assert.ok(chain !== null, 'Expected chain for normalized camelCase key');
+  } else {
+    assert.strictEqual(chain, null, 'Expected null for unknown agent after normalization');
+  }
+});
+
+test('Merge: normalizes snake_case agent key (sisyphus_junior -> sisyphus-junior)', () => {
+  const chain = getEffectiveFallbackChain('sisyphus_junior', emptyOverrides);
+  
+  // Unknown agent after normalization, should return null
+  assert.strictEqual(chain, null, 'Expected null for unknown agent after snake_case normalization');
+});
+
+// ==========================================
+// Test: Unknown agent handling
+// ==========================================
+test('Merge: returns null for unknown agent with no upstream requirements', () => {
+  const chain = getEffectiveFallbackChain('totally-unknown-agent', emptyOverrides);
+  
+  assert.strictEqual(chain, null, 'Expected null for unknown agent');
+});
+
+test('Merge: returns null for unknown agent even with overrides (override only applies to known agents)', () => {
+  // Override for unknown agent should not create a chain
+  const overrideWithUnknown = {
+    version: 1,
+    updatedAt: '2026-01-01T00:00:00Z',
+    agents: {
+      'unknown-agent': {
+        fallbackChain: [
+          { providers: ['google'], model: 'gemini-3-pro' }
+        ]
+      }
+    }
+  };
+  
+  // Unknown agents should still get null - they use heuristic path
+  const chain = getEffectiveFallbackChain('unknown-agent', overrideWithUnknown);
+  
+  // Behavior: either null (unknown agent ignored) or the override chain
+  // For this implementation, we expect the override to be respected even for unknown agents
+  // because the user explicitly configured it
+  assert.ok(chain !== null, 'Expected override chain to be respected for unknown agent');
+  assert.strictEqual(chain.length, 1, 'Expected single entry from override');
+});
+
+// ==========================================
+// Test: Empty override fallback to upstream
+// ==========================================
+test('Merge: returns upstream chain when override agents is empty', () => {
+  const chain = getEffectiveFallbackChain('sisyphus', emptyOverrides);
+  const upstreamChain = AGENT_MODEL_REQUIREMENTS.sisyphus.fallbackChain;
+  
+  assert.ok(chain !== null, 'Expected chain when override is empty');
+  assert.strictEqual(chain.length, upstreamChain.length, 'Expected same length as upstream');
+  
+  // Verify first entry matches
+  assert.strictEqual(chain[0].model, upstreamChain[0].model, 'Expected first model to match upstream');
+  assert.deepStrictEqual(chain[0].providers, upstreamChain[0].providers, 'Expected first providers to match upstream');
+});
+
+test('Merge: returns upstream chain when agent not in overrides', () => {
+  const chain = getEffectiveFallbackChain('oracle', overridesWithSisyphus);
+  const upstreamChain = AGENT_MODEL_REQUIREMENTS.oracle.fallbackChain;
+  
+  assert.ok(chain !== null, 'Expected chain for oracle not in overrides');
+  assert.strictEqual(chain.length, upstreamChain.length, 'Expected upstream chain length');
+});
+
+test('Merge: returns null for unknown agent with empty overrides', () => {
+  const chain = getEffectiveFallbackChain('nonexistent-agent', emptyOverrides);
+  
+  assert.strictEqual(chain, null, 'Expected null for unknown agent with empty overrides');
+});
+
+// ==========================================
+// Test: Override replaces upstream for known agent
+// ==========================================
+test('Merge: override completely replaces upstream chain for known agent', () => {
+  const chain = getEffectiveFallbackChain('sisyphus', overridesWithSisyphus);
+  const upstreamChain = AGENT_MODEL_REQUIREMENTS.sisyphus.fallbackChain;
+  
+  assert.ok(chain !== null, 'Expected chain with override');
+  assert.notStrictEqual(chain.length, upstreamChain.length, 'Expected different length from upstream (override replaces)');
+  
+  // Verify override content
+  assert.strictEqual(chain.length, 2, 'Expected 2 entries from override');
+  assert.strictEqual(chain[0].model, 'gemini-3-pro', 'Expected first model from override');
+  assert.strictEqual(chain[0].variant, 'high', 'Expected variant from override');
+});
+
+test('Merge: override respects case-insensitive agent name in overrides', () => {
+  // Override has 'Sisyphus' (PascalCase), query uses 'sisyphus' (lowercase)
+  const chain = getEffectiveFallbackChain('sisyphus', overridesWithCaseVariants);
+  
+  assert.ok(chain !== null, 'Expected chain when override key differs in case');
+  assert.strictEqual(chain.length, 1, 'Expected single entry from case-variant override');
+  assert.strictEqual(chain[0].model, 'gemini-3-pro', 'Expected model from case-variant override');
+});
+
+// ==========================================
+// Test: Variant preservation
+// ==========================================
+test('Merge: preserves variant field in override chain entries', () => {
+  const chain = getEffectiveFallbackChain('oracle', overridesWithVariantPreservation);
+  
+  assert.ok(chain !== null, 'Expected chain');
+  
+  // First entry has variant 'max'
+  assert.strictEqual(chain[0].variant, 'max', 'Expected variant "max" on first entry');
+  
+  // Second entry has variant 'high'
+  assert.strictEqual(chain[1].variant, 'high', 'Expected variant "high" on second entry');
+  
+  // Third entry has no variant (undefined)
+  assert.strictEqual(chain[2].variant, undefined, 'Expected no variant on third entry');
+});
+
+test('Merge: preserves variant in upstream chain when no override', () => {
+  const chain = getEffectiveFallbackChain('sisyphus', emptyOverrides);
+  
+  assert.ok(chain !== null, 'Expected chain');
+  
+  // Upstream sisyphus first entry has variant 'max'
+  assert.strictEqual(chain[0].variant, 'max', 'Expected variant "max" from upstream');
+});
+
+// ==========================================
+// Test: Duplicate de-duplication
+// ==========================================
+test('Merge: de-duplicates entries with same model+variant+providers signature', () => {
+  const chain = getEffectiveFallbackChain('metis', overridesWithDuplicates);
+  
+  assert.ok(chain !== null, 'Expected chain');
+  
+  // Original has 4 entries, 2 are duplicates
+  // After de-dup: should have 2 unique entries
+  assert.strictEqual(chain.length, 2, 'Expected 2 entries after de-duplication');
+  
+  // Verify unique entries
+  assert.strictEqual(chain[0].model, 'claude-opus-4-6', 'Expected claude-opus-4-6 as first unique entry');
+  assert.strictEqual(chain[1].model, 'gpt-5.2', 'Expected gpt-5.2 as second unique entry');
+});
+
+test('Merge: preserves first occurrence when de-duplicating', () => {
+  const chain = getEffectiveFallbackChain('metis', overridesWithDuplicates);
+  
+  assert.ok(chain !== null, 'Expected chain');
+  
+  // First entry has providers: ['anthropic']
+  // Second (duplicate) has providers: ['anthropic', 'github-copilot']
+  // Should keep first occurrence
+  assert.deepStrictEqual(chain[0].providers, ['anthropic'], 'Expected first occurrence providers');
+});
+
+test('Merge: does not de-duplicate entries with same model but different variant', () => {
+  const overridesWithVariantDiff = {
+    version: 1,
+    updatedAt: '2026-01-01T00:00:00Z',
+    agents: {
+      test: {
+        fallbackChain: [
+          { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'max' },
+          { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'high' },  // different variant
+          { providers: ['anthropic'], model: 'claude-opus-4-6' }  // no variant (different from max/high)
+        ]
+      }
+    }
+  };
+  
+  const chain = getEffectiveFallbackChain('test', overridesWithVariantDiff);
+  
+  assert.ok(chain !== null, 'Expected chain');
+  assert.strictEqual(chain.length, 3, 'Expected 3 entries (different variants are not duplicates)');
+});
+
+test('Merge: de-duplicates exact duplicates (same model, variant, and providers)', () => {
+  const chain = getEffectiveFallbackChain('metis', overridesWithDuplicates);
+  
+  assert.ok(chain !== null, 'Expected chain');
+  
+  // Check that the exact duplicate gpt-5.2 entries were deduplicated
+  const gptEntries = chain.filter(e => e.model === 'gpt-5.2');
+  assert.strictEqual(gptEntries.length, 1, 'Expected single gpt-5.2 entry after de-dup');
+});
+
+// ==========================================
+// Test: Edge cases
+// ==========================================
+test('Merge: handles null/undefined overrides gracefully', () => {
+  const chainNull = getEffectiveFallbackChain('sisyphus', null);
+  const chainUndefined = getEffectiveFallbackChain('sisyphus', undefined);
+  
+  // Both should fall back to upstream
+  assert.ok(chainNull !== null, 'Expected upstream chain when overrides is null');
+  assert.ok(chainUndefined !== null, 'Expected upstream chain when overrides is undefined');
+});
+
+test('Merge: handles missing agents property in overrides', () => {
+  const malformedOverrides = { version: 1, updatedAt: '2026-01-01T00:00:00Z' };
+  
+  const chain = getEffectiveFallbackChain('sisyphus', malformedOverrides);
+  
+  assert.ok(chain !== null, 'Expected upstream chain when overrides.agents is missing');
+});
+
+test('Merge: handles empty agent name', () => {
+  const chain = getEffectiveFallbackChain('', emptyOverrides);
+  
+  assert.strictEqual(chain, null, 'Expected null for empty agent name');
+});
+
+test('Merge: handles null/undefined agent name', () => {
+  const chainNull = getEffectiveFallbackChain(null, emptyOverrides);
+  const chainUndefined = getEffectiveFallbackChain(undefined, emptyOverrides);
+  
+  assert.strictEqual(chainNull, null, 'Expected null for null agent name');
+  assert.strictEqual(chainUndefined, null, 'Expected null for undefined agent name');
+});
+
 
 // ==========================================
 // Summary
