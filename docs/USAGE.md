@@ -60,10 +60,10 @@ opencode-agent-config --list
 Run the full test suite:
 
 ```bash
-npm test
+./run-tests.sh all        # Run all tests
 ```
 
-Or use the test runner script directly:
+Or run specific test groups directly:
 
 ```bash
 ./run-tests.sh all        # Run all tests

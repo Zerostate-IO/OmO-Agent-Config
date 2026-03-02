@@ -20,10 +20,11 @@ OmO-Agent-Config/
 │   ├── config-manager.js            # Named profile CRUD + migrations
 │   ├── validation.js                # Config integrity checks + missing agent/MCP helpers
 │   ├── upstream.js                  # Fetch/cache upstream schema from GitHub
-│   ├── model-loader.js              # Scoring helpers (recommendations)
 │   ├── core/
 │   │   ├── models.js                # `opencode models --verbose` parsing + cache + ranking
+│   │   ├── model-requirements.js    # Upstream fallback chain definitions + resolution
 │   │   ├── agents.js                # Fetch/parse agent docs (GitHub) + cache
+│   │   ├── provider-diagnostics.js  # Provider availability diagnostics
 │   │   └── backup.js                # Timestamped backups
 │   └── web/
 │       ├── index.html               # SPA shell
