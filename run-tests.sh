@@ -305,6 +305,9 @@ if (hasMismatches) {
     node tests/fallback-api-test.js "$BASE_URL" || { echo "  ❌ Fallback API contract tests failed"; exit 1; }
     
     echo ""
+    echo "Running fallback merge integration tests..."
+    node tests/fallback-merge-test.js || { echo "  ❌ Fallback merge tests failed"; exit 1; }
+    echo ""
     echo "✅ API tests complete"
     ;;
     
