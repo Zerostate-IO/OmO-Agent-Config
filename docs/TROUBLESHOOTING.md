@@ -102,10 +102,9 @@ cp ~/.config/opencode/backups/oh-my-opencode-YYYY-MM-DD-HHMMSS.json \
 Run the full test suite:
 
 ```bash
-./run-tests.sh all        # Run all tests
+npm test
 ```
 
-Or run specific test groups:
 Or use the test runner script:
 
 ```bash

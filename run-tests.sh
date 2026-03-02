@@ -301,13 +301,6 @@ if (hasMismatches) {
     node tests/backup-drift-test.js || { echo "  ❌ Backup and drift-check tests failed"; exit 1; }
     
     echo ""
-    echo "Running fallback override API contract tests..."
-    node tests/fallback-api-test.js "$BASE_URL" || { echo "  ❌ Fallback API contract tests failed"; exit 1; }
-    
-    echo ""
-    echo "Running fallback merge integration tests..."
-    node tests/fallback-merge-test.js || { echo "  ❌ Fallback merge tests failed"; exit 1; }
-    echo ""
     echo "✅ API tests complete"
     ;;
     
