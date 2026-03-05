@@ -1,0 +1,14 @@
+{
+  "name": "test-empty-fallback-profile",
+  "description": "Profile with empty fallback_models to verify key removal",
+  "created": "2025-01-01T00:00:00.000Z",
+  "modified": "2025-01-01T00:00:00.000Z",
+  "config": {
+    "agents": {
+      "oracle": {
+        "model": "anthropic/claude-3-opus",
+        "fallback_models": []
+      }
+    }
+  }
+}

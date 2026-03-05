@@ -1,0 +1,23 @@
+{
+  "name": "test-fallback-profile",
+  "description": "Profile with ordered fallback models",
+  "created": "2025-01-01T00:00:00.000Z",
+  "modified": "2025-01-01T00:00:00.000Z",
+  "config": {
+    "agents": {
+      "oracle": {
+        "model": "anthropic/claude-3-opus",
+        "fallback_models": ["openai/gpt-4", "google/gemini-pro", "anthropic/claude-sonnet"]
+      },
+      "sisyphus": {
+        "model": "anthropic/claude-opus-4-5",
+        "fallback_models": ["openai/gpt-5.2"]
+      }
+    },
+    "customUnknownKey": "should-be-preserved",
+    "anotherCustomField": {
+      "nested": true,
+      "value": 42
+    }
+  }
+}
