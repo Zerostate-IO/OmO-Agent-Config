@@ -1924,12 +1924,205 @@ body {
     border-bottom: none;
 }
 
-.diagnostics-actions {
+ .diagnostics-actions {
     display: flex;
     gap: var(--spacing-sm);
     margin-top: var(--spacing-lg);
     padding-top: var(--spacing-md);
     border-top: 1px solid var(--color-border);
+}
+
+ 
+/* Fallback Editor Modal Styles */
+.fallback-editor {
+    max-width: 600px;
+}
+ 
+.fallback-editor-header {
+    margin-bottom: var(--spacing-md);
+}
+ 
+.fallback-editor-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+ 
+.fallback-editor-subtitle {
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+}
+ 
+.fallback-editor-hint {
+    color: var(--color-text-secondary);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+ 
+.fallback-editor-list {
+    margin-top: var(--spacing-md);
+}
+ 
+.fallback-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    margin-bottom: var(--spacing-sm);
+}
+ 
+.fallback-item-info {
+    flex: 1;
+    gap: var(--spacing-sm);
+}
+ 
+.fallback-item-id {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+ 
+.fallback-item-priority {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+ 
+.fallback-item-controls {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+ 
+.fallback-item-controls .btn-icon {
+    padding: 4px;
+    min-width: 24px;
+    font-size: 0.85rem;
+}
+ 
+.fallback-item-controls .btn-icon:first-child:disabled,
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+ 
+.fallback-item-controls .btn-icon:hover:not(:disabled) {
+    opacity: 0.6;
+}
+ 
+.fallback-item-controls .btn-danger {
+    color: var(--color-error);
+    border-color: var(--color-error);
+}
+ 
+.fallback-item-controls .btn-danger:hover {
+    background-color: var(--color-error);
+    border-color: var(--color-error);
+}
+ 
+.fallback-editor-add {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+ 
+.fallback-input {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    font-size: 0.9rem;
+    background-color: var(--color-bg);
+}
+ 
+.fallback-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 4px rgba(0, 212, 170, 0.1);
+}
+ 
+.fallback-input::placeholder {
+    color: var(--color-text-secondary);
+}
+ 
+.fallback-validation-error {
+    color: var(--color-error);
+    font-size: 0.8rem;
+    margin-top: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: rgba(214, 48, 49, 0.1);
+    border-radius: var(--radius);
+}
+ 
+.fallback-validation-error.hidden {
+    display: none;
+}
+ 
+.fallback-editor-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+ 
+.fallback-empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+ 
+.fallback-editor-actions .btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.fallback-editor-actions .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.fallback-editor-actions .btn-secondary {
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+}
+
+.fallback-editor-actions .btn-secondary:hover {
+    background-color: var(--color-bg);
+}
+
+ border-color: var(--color-primary);
+}
+
+.fallback-editor-actions .btn-secondary {
+    border-color: var(--color-primary);
+}
+
+.fallback-editor-actions .btn-danger {
+    background-color: var(--color-error);
+    color: white;
+}
+
+.fallback-editor-actions .btn-danger:hover {
+    background-color: var(--color-error);
+    border-color: var(--color-error);
+}
+ 
+.fallback-editor-actions .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+}
+ 
+.fallback-editor-actions .btn-secondary {
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+}
+ 
+.fallback-editor-actions .btn-secondary:hover {
+    background-color: var(--color-bg);
 }
 
 
