@@ -4,17 +4,19 @@
  * Upstream Drift Detection Script
  * Compares local model-requirements.js against upstream Oh My Opencode source
  * 
- * Usage: node scripts/drift-check.js [--exit-on-drift] [--json] [--refresh] [--pin]
+ * Usage: node scripts/drift-check.js [--exit-on-drift] [--json] [--refresh] [--pin] [--strict-upstream]
  * 
  * Modes:
  *   check (default)   - Read-only comparison of local vs upstream
  *   --refresh         - Update cached snapshot and compare
  *   --pin             - Save current upstream SHA to .omo-upstream-sha
+ *   --strict-upstream - Fail (non-zero exit) when upstream SHA cannot be resolved
  * 
  * Exit codes:
- *   0 - No drift detected (or network unavailable, graceful)
+ *   0 - No drift detected (or network unavailable, graceful in non-strict mode)
  *   1 - Drift detected (when --exit-on-drift flag is used)
- *   2 - Network error or parsing failure
+ *   2 - Network error, parsing failure, or upstream unresolvable (strict mode)
+ *   3 - Upstream SHA could not be resolved (--strict-upstream only)
  */
 
 const https = require('https');
@@ -698,6 +700,7 @@ async function main() {
   const jsonOutput = args.includes('--json');
   const refreshMode = args.includes('--refresh');
   const pinMode = args.includes('--pin');
+  const strictUpstream = args.includes('--strict-upstream');
 
   // Handle --pin mode first (just pin the SHA and exit)
   if (pinMode) {
@@ -765,7 +768,9 @@ async function main() {
     changedCategories: [],
     pinnedSha: null,
     currentSha: null,
-    actionRequired: []
+    actionRequired: [],
+    upstreamResolved: true,
+    unresolvedReason: null
   };
 
   if (!jsonOutput) {
@@ -838,6 +843,7 @@ async function main() {
         agents: cached.agents,
         categories: cached.categories
       };
+      output.upstreamResolved = true;
     } else {
       // No cache, fetch fresh
       try {
@@ -847,17 +853,33 @@ async function main() {
         const upstreamContent = await fetchHttps(UPSTREAM.modelRequirementsUrl);
         currentSha = await getCommitSha();
         upstreamReqs = parseUpstreamRequirements(upstreamContent);
+        output.upstreamResolved = true;
       } catch (e) {
+        // Track upstream resolution failure
+        output.upstreamResolved = false;
+        output.unresolvedReason = `Network unavailable or fetch failed: ${e.message}`;
+        
+        if (strictUpstream) {
+          // Strict mode: fail explicitly with actionable error
+          output.networkError = e.message;
+          if (jsonOutput) {
+            console.log(JSON.stringify(output, null, 2));
+          } else {
+            console.error(`${colors.red}❌ [STRICT] Upstream SHA could not be resolved${colors.reset}`);
+            console.error(`${colors.red}   Reason: ${e.message}${colors.reset}`);
+            console.error(`${colors.gray}   Run without --strict-upstream for graceful fallback${colors.reset}`);
+          }
+          process.exit(3);
+        }
+        
         if (jsonOutput) {
-          // For JSON output on network failure, return empty result with hasDrift=false
-          // This maintains backward compatibility for scripts that check hasDrift
           output.networkError = e.message;
           console.log(JSON.stringify(output, null, 2));
         } else {
           console.warn(`${colors.yellow}⚠ Network unavailable or fetch failed: ${e.message}${colors.reset}`);
           console.log(`${colors.gray}   Skipping drift check (graceful fallback)${colors.reset}`);
         }
-        process.exit(0); // Graceful exit on network failure
+        process.exit(0);
       }
     }
   }
