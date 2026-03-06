@@ -960,4 +960,462 @@ test.describe('OmO Agent Config UI', () => {
     // Take screenshot
     await testPage.screenshot({ path: 'test-results/provider-diagnostics-lmstudio-policy.png' });
     await testPage.close();
+  });
+
+  // ===========================================
+  // Fallback Editor Tests
+  // ===========================================
+
+  test('fallback editor opens and shows current fallbacks', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    // Stub config API with fallback models
+    await testPage.route('**/api/config', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          config: {
+            agents: {
+              sisyphus: {
+                model: 'google/claude-opus-4-5-thinking',
+                fallback_models: ['anthropic/claude-3-5-sonnet', 'openai/gpt-4o']
+              }
+            }
+          }
+        })
+      });
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor for sisyphus
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify modal is open
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+    
+    // Verify modal title
+    const modalTitle = await testPage.locator('#modal-title');
+    await expect(modalTitle).toHaveText('Fallback Models Editor');
+    
+    // Verify fallback items are displayed
+    const fallbackItems = await testPage.locator('.fallback-item');
+    const count = await fallbackItems.count();
+    expect(count).toBe(2);
+    
+    // Verify first fallback shows correct ID and priority
+    const firstItem = fallbackItems.first();
+    await expect(firstItem.locator('.fallback-item-id')).toHaveText('anthropic/claude-3-5-sonnet');
+    await expect(firstItem.locator('.fallback-item-priority')).toHaveText('Priority 1');
+    
+    await testPage.screenshot({ path: 'test-results/fallback-editor-open.png' });
+    await testPage.close();
+  });
+
+  test('fallback edit/save/reload persists changes', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    // Track saved config state
+    let savedConfig = {
+      agents: {
+        sisyphus: {
+          model: 'google/claude-opus-4-5-thinking',
+          fallback_models: ['anthropic/claude-3-5-sonnet']
+        }
+      }
+    };
+    
+    // Stub config API - returns current state, accepts POST saves
+    await testPage.route('**/api/config', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ config: savedConfig })
+        });
+      } else if (route.request().method() === 'POST') {
+        const postData = route.request().postDataJSON();
+        savedConfig = postData;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true })
+        });
+      }
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Add a new fallback
+    const input = await testPage.locator('#new-fallback-input');
+    await input.fill('openai/gpt-4o');
+    await testPage.locator('button:has-text("Add")').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify new fallback appears
+    const fallbackItems = await testPage.locator('.fallback-item');
+    expect(await fallbackItems.count()).toBe(2);
+    
+    // Save changes
+    await testPage.locator('button[onclick="saveFallbackModels()"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify save button in main UI is enabled (unsaved changes)
+    const mainSaveBtn = await testPage.locator('#save-btn');
+    await expect(mainSaveBtn).toBeEnabled();
+    
+    // Click main save button
+    await mainSaveBtn.click();
+    await testPage.waitForTimeout(500);
+    
+    // Reload page
+    await testPage.reload();
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Reopen fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify both fallbacks persist
+    const reloadedItems = await testPage.locator('.fallback-item');
+    expect(await reloadedItems.count()).toBe(2);
+    
+    await testPage.screenshot({ path: 'test-results/fallback-persist-after-reload.png' });
+    await testPage.close();
+  });
+
+  test('duplicate model in fallback shows validation error', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    await testPage.route('**/api/config', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          config: {
+            agents: {
+              sisyphus: {
+                model: 'google/claude-opus-4-5-thinking',
+                fallback_models: ['anthropic/claude-3-5-sonnet']
+              }
+            }
+          }
+        })
+      });
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Try to add duplicate model
+    const input = await testPage.locator('#new-fallback-input');
+    await input.fill('anthropic/claude-3-5-sonnet'); // Already exists
+    await testPage.locator('button:has-text("Add")').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify validation error appears
+    const errorDiv = await testPage.locator('#fallback-validation-error');
+    await expect(errorDiv).toBeVisible();
+    await expect(errorDiv).toContainText('already in the fallback list');
+    
+    // Verify no new item was added
+    const fallbackItems = await testPage.locator('.fallback-item');
+    expect(await fallbackItems.count()).toBe(1);
+    
+    await testPage.screenshot({ path: 'test-results/fallback-duplicate-error.png' });
+    await testPage.close();
+  });
+
+  test('malformed model ID shows validation error', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    await testPage.route('**/api/config', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          config: {
+            agents: {
+              sisyphus: {
+                model: 'google/claude-opus-4-5-thinking'
+              }
+            }
+          }
+        })
+      });
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Try to add malformed model ID (no slash)
+    const input = await testPage.locator('#new-fallback-input');
+    await input.fill('invalid-model-id');
+    await testPage.locator('button:has-text("Add")').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify validation error appears
+    const errorDiv = await testPage.locator('#fallback-validation-error');
+    await expect(errorDiv).toBeVisible();
+    await expect(errorDiv).toContainText('Invalid format');
+    
+    // Try another malformed ID (multiple slashes)
+    await input.fill('provider/model/extra');
+    await testPage.locator('button:has-text("Add")').click();
+    await testPage.waitForTimeout(300);
+    
+    await expect(errorDiv).toContainText('Invalid format');
+    
+    await testPage.screenshot({ path: 'test-results/fallback-malformed-id-error.png' });
+    await testPage.close();
+  });
+
+  test('reorder fallback with up/down buttons changes priority', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    await testPage.route('**/api/config', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          config: {
+            agents: {
+              sisyphus: {
+                model: 'google/claude-opus-4-5-thinking',
+                fallback_models: ['anthropic/claude-3-5-sonnet', 'openai/gpt-4o', 'google/gemini-2.0-flash']
+              }
+            }
+          }
+        })
+      });
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify initial order
+    let items = await testPage.locator('.fallback-item');
+    await expect(items.nth(0).locator('.fallback-item-id')).toHaveText('anthropic/claude-3-5-sonnet');
+    await expect(items.nth(1).locator('.fallback-item-id')).toHaveText('openai/gpt-4o');
+    await expect(items.nth(2).locator('.fallback-item-id')).toHaveText('google/gemini-2.0-flash');
+    
+    // Move second item up (openai/gpt-4o should become first)
+    await items.nth(1).locator('button[title="Move up"]').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify new order
+    items = await testPage.locator('.fallback-item');
+    await expect(items.nth(0).locator('.fallback-item-id')).toHaveText('openai/gpt-4o');
+    await expect(items.nth(1).locator('.fallback-item-id')).toHaveText('anthropic/claude-3-5-sonnet');
+    
+    // Move first item down (back to original)
+    await items.nth(0).locator('button[title="Move down"]').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify order restored
+    items = await testPage.locator('.fallback-item');
+    await expect(items.nth(0).locator('.fallback-item-id')).toHaveText('anthropic/claude-3-5-sonnet');
+    await expect(items.nth(1).locator('.fallback-item-id')).toHaveText('openai/gpt-4o');
+    
+    await testPage.screenshot({ path: 'test-results/fallback-reorder-buttons.png' });
+    await testPage.close();
+  });
+
+  test('remove fallback entry and save persists', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    let savedConfig = {
+      agents: {
+        sisyphus: {
+          model: 'google/claude-opus-4-5-thinking',
+          fallback_models: ['anthropic/claude-3-5-sonnet', 'openai/gpt-4o']
+        }
+      }
+    };
+    
+    await testPage.route('**/api/config', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ config: savedConfig })
+        });
+      } else if (route.request().method() === 'POST') {
+        const postData = route.request().postDataJSON();
+        savedConfig = postData;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true })
+        });
+      }
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify 2 items initially
+    let items = await testPage.locator('.fallback-item');
+    expect(await items.count()).toBe(2);
+    
+    // Remove first item
+    await items.first().locator('button[title="Remove"]').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify only 1 item remains
+    items = await testPage.locator('.fallback-item');
+    expect(await items.count()).toBe(1);
+    await expect(items.first().locator('.fallback-item-id')).toHaveText('openai/gpt-4o');
+    
+    // Save in fallback editor
+    await testPage.locator('button[onclick="saveFallbackModels()"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Save main config
+    await testPage.locator('#save-btn').click();
+    await testPage.waitForTimeout(500);
+    
+    // Reload and verify persistence
+    await testPage.reload();
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Reopen fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify only one fallback persists
+    items = await testPage.locator('.fallback-item');
+    expect(await items.count()).toBe(1);
+    await expect(items.first().locator('.fallback-item-id')).toHaveText('openai/gpt-4o');
+    
+    await testPage.screenshot({ path: 'test-results/fallback-remove-persist.png' });
+    await testPage.close();
+  });
+
+  test('cancel fallback editor discards unsaved changes', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    await testPage.route('**/api/config', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          config: {
+            agents: {
+              sisyphus: {
+                model: 'google/claude-opus-4-5-thinking',
+                fallback_models: ['anthropic/claude-3-5-sonnet']
+              }
+            }
+          }
+        })
+      });
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Add a new fallback
+    const input = await testPage.locator('#new-fallback-input');
+    await input.fill('openai/gpt-4o');
+    await testPage.locator('button:has-text("Add")').click();
+    await testPage.waitForTimeout(300);
+    
+    // Verify 2 items now
+    let items = await testPage.locator('.fallback-item');
+    expect(await items.count()).toBe(2);
+    
+    // Cancel changes
+    await testPage.locator('button:has-text("Cancel")').click();
+    await testPage.waitForTimeout(300);
+    
+    // Modal should be closed
+    const modal = await testPage.locator('#modal');
+    await expect(modal).not.toBeVisible();
+    
+    // Reopen fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify original state (only 1 item - changes were discarded)
+    items = await testPage.locator('.fallback-item');
+    expect(await items.count()).toBe(1);
+    await expect(items.first().locator('.fallback-item-id')).toHaveText('anthropic/claude-3-5-sonnet');
+    
+    await testPage.close();
+  });
+
+  test('empty fallback state shows placeholder message', async ({ page, context }) => {
+    const testPage = await context.newPage();
+    
+    await testPage.route('**/api/config', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          config: {
+            agents: {
+              sisyphus: {
+                model: 'google/claude-opus-4-5-thinking'
+                // No fallback_models
+              }
+            }
+          }
+        })
+      });
+    });
+    
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(2000);
+    
+    // Open fallback editor
+    await testPage.locator('button[onclick="openFallbackEditor(\'sisyphus\')"]').click();
+    await testPage.waitForTimeout(500);
+    
+    // Verify empty state message
+    const emptyDiv = await testPage.locator('.fallback-empty');
+    await expect(emptyDiv).toBeVisible();
+    await expect(emptyDiv).toContainText('No fallback models configured');
+    
+    await testPage.screenshot({ path: 'test-results/fallback-empty-state.png' });
+    await testPage.close();
   }); 
