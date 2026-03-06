@@ -1,0 +1,5 @@
+
+    // Take screenshot
+    await page.screenshot({ path: \"test-results/fallback-sections.png\" });
+  });
+});
