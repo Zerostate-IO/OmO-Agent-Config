@@ -361,11 +361,22 @@ node scripts/drift-check.js --pin
 ### Before Releases
 
 ```bash
-# Ensure no drift before cutting a release
-node scripts/drift-check.js --exit-on-dift || {
-  echo "ERROR: Upstream drift detected. Please sync before releasing."
+# Run the full release readiness check
+node scripts/release-readiness-check.js || {
+  echo "ERROR: Release readiness check failed. Fix issues before releasing."
   exit 1
 }
+
+# Or with JSON output for detailed logging
+node scripts/release-readiness-check.js --json > release-check.json
+if [ $? -ne 0 ]; then
+  echo "ERROR: Release readiness check failed:"
+  cat release-check.json
+  exit 1
+}
+```
+
+---
 
 # Verify no discouraged models in current assignments
 node scripts/omo-doc-scan.js --json | jq '.entries[] | select(.severity == "avoid")' && {
