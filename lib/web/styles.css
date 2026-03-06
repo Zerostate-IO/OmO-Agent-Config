@@ -965,6 +965,76 @@ body {
     line-height: 1.6;
 }
 
+/* Fallback Sections - Configured vs Upstream distinction */
+.fallback-section {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.fallback-section.configured {
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.08) 0%, rgba(0, 212, 170, 0.02) 100%);
+    border-left: 3px solid var(--color-primary);
+}
+
+.fallback-section.configured h4 {
+    color: var(--color-primary);
+}
+
+.fallback-section.upstream {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.08) 0%, rgba(108, 92, 231, 0.02) 100%);
+    border-left: 3px solid var(--color-secondary);
+}
+
+.fallback-section.upstream h4 {
+    color: var(--color-secondary);
+}
+
+.fallback-section.empty {
+    opacity: 0.85;
+    background: var(--color-bg);
+    border-left: 3px solid var(--color-border);
+}
+
+.fallback-description {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.5;
+    font-style: italic;
+}
+
+.fallback-list {
+    margin: 0 0 var(--spacing-sm) 0;
+    padding-left: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fallback-list li {
+    font-size: 0.85rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--color-bg-secondary);
+    border-radius: 4px;
+    color: var(--color-text);
+}
+
+.fallback-list li code {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.8rem;
+    background: none;
+    padding: 0;
+}
+
+.fallback-section.configured .fallback-list li {
+    border-left: 2px solid var(--color-primary);
+}
+
+.fallback-section.upstream .fallback-list li {
+    border-left: 2px solid var(--color-secondary);
+    opacity: 0.9;
+}
+
 .agent-capabilities {
     display: flex;
     gap: var(--spacing-sm);
@@ -1433,681 +1503,22 @@ body {
     color: var(--color-warning);
 }
 
-.agent-config-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.agent-config-actions .btn {
-    flex: 1;
-    font-size: 0.85rem;
-}
-
-/* Agent Selection Dialog */
-.assign-prompt {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.assign-prompt h3 {
-    color: var(--color-text);
-    margin: 0;
-}
-
-.agent-selection-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.agent-select-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    padding: var(--spacing-md);
-    text-align: left;
-    gap: var(--spacing-xs);
-}
-
-.agent-select-name {
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--color-text);
-}
-
-.agent-select-current {
-    font-size: 0.85rem;
-    color: var(--color-text-secondary);
-}
-
-/* Model Selector in Agent View */
-.model-selector {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-    max-height: 70vh;
-    overflow-y: auto;
-}
-
-.model-selector-header {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.model-selector-summary {
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-}
-
-.model-selector-current {
-    font-size: 0.85rem;
-    color: var(--color-text-secondary);
-}
-
-.model-selector-hints {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-xs);
-}
-
-.model-selector-hints .hint {
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-bg);
-    color: var(--color-text-secondary);
-}
-
-.model-selector-controls {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background-color: var(--color-bg);
-}
-
-.model-selector-search input {
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md);
-    background-color: var(--color-bg-secondary);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-}
-
-.model-selector-search input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.1);
-}
-
-.model-selector-filters {
-    display: flex;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-}
-
-.model-selector-chips {
-    display: flex;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
-}
-
-.model-selector-results {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.model-selector-section h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--color-text);
-    font-size: 0.95rem;
-}
-
-.model-selector-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: var(--spacing-sm);
-}
-
-.model-provider-group {
-    margin-top: var(--spacing-sm);
-    padding-top: var(--spacing-sm);
-    border-top: 1px dashed var(--color-border);
-}
-
-.model-provider-group-title {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.model-provider-group-title .count {
-    color: var(--color-text-secondary);
-    font-weight: 400;
-}
-
-.model-select-used {
-    margin-top: var(--spacing-xs);
-    font-size: 0.75rem;
-    color: var(--color-text-secondary);
-}
-
-.model-selector-note {
-    margin-top: var(--spacing-sm);
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-}
-
-.model-families {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-}
-
-.model-family {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: var(--spacing-md);
-    background-color: var(--color-bg);
-}
-
-.model-family h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--color-primary);
-    text-transform: capitalize;
-}
-
-.family-models {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--spacing-sm);
-}
-
-.model-select-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    padding: var(--spacing-sm);
-}
-
-.model-select-btn.current {
-    border-color: var(--color-primary);
-    background-color: rgba(0, 212, 170, 0.1);
-}
-
-.model-select-name {
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.model-select-meta {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-}
-
-/* Variant badges for recommended models */
-.variant-badge {
-    font-size: 0.65rem;
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    margin-left: 4px;
-}
-
-.variant-max {
-    background-color: #ffd700;
-    color: #1a1a2e;
-}
-
-.variant-xhigh {
-    background-color: #ff9500;
-    color: #1a1a2e;
-}
-
-.variant-high {
-    background-color: var(--color-success);
-    color: white;
-}
-
-.variant-medium {
-    background-color: var(--color-secondary);
-    color: white;
-}
-
-.variant-low {
-    background-color: var(--color-text-secondary);
-    color: var(--color-bg);
-}
-
-/* Provenance badge for fallback-chain models */
-.provenance-badge {
-    font-size: 0.75rem;
-    opacity: 0.7;
-    margin-left: 2px;
-}
-
-.provenance-badge:hover {
-    opacity: 1;
-}
-
-/* Provider Diagnostics Modal Styles */
-.diagnostics-modal-content {
-    max-height: 70vh;
-    overflow-y: auto;
-}
-
-.diagnostics-timestamp {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-md);
-    font-style: italic;
-}
-
-.diagnostics-section {
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-md);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.diagnostics-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-}
-
-.diagnostics-section h3 {
-    color: var(--color-text);
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: var(--spacing-sm);
-}
-
-.diagnostics-section h4 {
-    color: var(--color-text);
-    font-size: 0.95rem;
-    font-weight: 500;
-    margin-bottom: var(--spacing-xs);
-}
-
-.diagnostics-sources {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-md);
-}
-
-.diagnostics-source-group {
-    background-color: var(--color-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius);
-}
-
-.diagnostics-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.diagnostics-list li {
-    padding: var(--spacing-xs) 0;
-    font-size: 0.85rem;
-}
-
-.provider-name {
-    font-weight: 500;
-    color: var(--color-text);
-}
-
-.model-count, .agent-count {
-    color: var(--color-text-secondary);
-    font-size: 0.8rem;
-}
-
-.discovered-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-xs);
-}
-
-.discovered-item {
-    background-color: var(--color-bg);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
-
-.diagnostics-empty {
-    color: var(--color-text-secondary);
-    font-style: italic;
-    font-size: 0.85rem;
-}
-
-.mismatch-category {
-    margin-bottom: var(--spacing-md);
-}
-
-.mismatch-title {
-    font-size: 0.9rem;
-    font-weight: 500;
-    margin-bottom: var(--spacing-xs);
-}
-
-.mismatch-title.missing {
-    color: var(--color-error);
-}
-
-.mismatch-title.unexpected {
-    color: var(--color-warning);
-}
-
-.mismatch-title.alias {
-    color: var(--color-secondary);
-}
-
-.mismatch-list {
-    background-color: var(--color-bg);
-    padding: var(--spacing-xs);
-    border-radius: var(--radius);
-}
-
-.mismatch-item {
-    padding: 4px 8px;
-    font-size: 0.85rem;
-    border-radius: 4px;
-    margin-bottom: 1px;
-}
-
-.mismatch-item.missing {
-    background-color: rgba(214, 48, 49, 0.1);
-    color: var(--color-error);
-}
-
-.mismatch-item.unexpected {
-    background-color: rgba(253, 203, 110, 0.1);
-    color: #8b5cf6;
-}
-
-.mismatch-item.alias {
-    background-color: rgba(0, 212, 170, 0.05);
-}
-
-.alias-from {
-    color: var(--color-text-secondary);
-    text-decoration: line-through;
-}
-
-.alias-to {
-    color: var(--color-success);
-    font-weight: 500;
-}
-
-.cache-status {
-    background-color: var(--color-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius);
-    font-size: 0.85rem;
-}
-
-.cache-exists {
-    color: var(--color-success);
-}
-
-.cache-missing {
-    color: var(--color-warning);
-}
-
-.cache-timestamp, .cache-age {
-    color: var(--color-text-secondary);
-    font-size: 0.8rem;
-    margin-top: 4px;
-}
-
-.diagnostics-policy {
-    background-color: var(--color-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius);
-}
-
-.policy-item {
-    padding: 4px 8px;
-    font-size: 0.85rem;
-    background-color: var(--color-bg-tertiary);
-    border-radius: 4px;
-    display: inline-block;
-}
-
-.policy-reason {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    margin-top: 4px;
-    font-style: italic;
-}
-
- .diagnostics-hints {
-    list-style: none;
-    margin: 0;
-    background-color: var(--color-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--radius);
-}
-
-.hint-item {
-    padding: 8px 0;
-    font-size: 0.85rem;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.hint-item:last-child {
-    border-bottom: none;
-}
-
- .diagnostics-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-lg);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-border);
-}
-
- 
-/* Fallback Editor Modal Styles */
-.fallback-editor {
-    max-width: 600px;
-}
- 
-.fallback-editor-header {
-    margin-bottom: var(--spacing-md);
-}
- 
-.fallback-editor-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-}
- 
-.fallback-editor-subtitle {
-    color: var(--color-text-secondary);
-    margin-top: var(--spacing-xs);
-}
- 
-.fallback-editor-hint {
-    color: var(--color-text-secondary);
-    font-style: italic;
-    font-size: 0.9rem;
-}
- 
-.fallback-editor-list {
-    margin-top: var(--spacing-md);
-}
- 
-.fallback-item {
+.agent-config-fallback-indicator {
     display: flex;
     align-items: center;
-    padding: var(--spacing-sm) var(--spacing-md);
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
     background-color: var(--color-bg);
-    border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    margin-bottom: var(--spacing-sm);
-}
- 
-.fallback-item-info {
-    flex: 1;
-    gap: var(--spacing-sm);
-}
- 
-.fallback-item-id {
-    font-family: var(--font-mono);
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-text);
-}
- 
-.fallback-item-priority {
     font-size: 0.75rem;
     color: var(--color-text-secondary);
-    background-color: var(--color-bg-tertiary);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
-}
- 
-.fallback-item-controls {
-    display: flex;
-    gap: var(--spacing-xs);
-}
- 
-.fallback-item-controls .btn-icon {
-    padding: 4px;
-    min-width: 24px;
-    font-size: 0.85rem;
-}
- 
- .fallback-item-controls .btn-icon:first-child:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
- 
-.fallback-item-controls .btn-icon:hover:not(:disabled) {
-    opacity: 0.6;
-}
- 
-.fallback-item-controls .btn-danger {
-    color: var(--color-error);
-    border-color: var(--color-error);
-}
- 
-.fallback-item-controls .btn-danger:hover {
-    background-color: var(--color-error);
-    border-color: var(--color-error);
-}
- 
-.fallback-editor-add {
-    margin-top: var(--spacing-md);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-border);
-}
- 
-.fallback-input {
-    flex: 1;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius);
-    border: 1px solid var(--color-border);
-    font-size: 0.9rem;
-    background-color: var(--color-bg);
-}
- 
-.fallback-input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 4px rgba(0, 212, 170, 0.1);
-}
- 
-.fallback-input::placeholder {
-    color: var(--color-text-secondary);
-}
- 
-.fallback-validation-error {
-    color: var(--color-error);
-    font-size: 0.8rem;
-    margin-top: var(--spacing-xs);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background-color: rgba(214, 48, 49, 0.1);
-    border-radius: var(--radius);
-}
- 
-.fallback-validation-error.hidden {
-    display: none;
-}
- 
-.fallback-editor-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-border);
-}
- 
-.fallback-empty {
-    text-align: center;
-    padding: var(--spacing-xl);
-    color: var(--color-text-secondary);
-    font-style: italic;
-}
- 
-.fallback-editor-actions .btn-primary {
-    background-color: var(--color-primary);
-    color: white;
-}
-
-.fallback-editor-actions .btn-primary:hover {
-    background-color: var(--color-primary-hover);
-}
-
-.fallback-editor-actions .btn-secondary {
-    background-color: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
 }
 
-.fallback-editor-actions .btn-secondary:hover {
-    background-color: var(--color-bg);
-}
-
-.fallback-editor-actions .btn-danger {
-    background-color: var(--color-error);
-    color: white;
-}
-
-.fallback-editor-actions .btn-danger:hover {
-    background-color: var(--color-error);
-    border-color: var(--color-error);
-}
-
-.fallback-editor-actions .btn-primary:hover {
-    background-color: var(--color-primary-hover);
-}
-
-.fallback-editor-actions .btn-secondary {
+.agent-config-fallback-indicator:hover {
     background-color: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
 }
-
-.fallback-editor-actions .btn-secondary:hover {
-    background-color: var(--color-bg);
-}
-
 
 /* Provider Diagnostics Banner */
 .diagnostics-banner {
