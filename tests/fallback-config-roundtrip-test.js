@@ -447,4 +447,416 @@ function run() {
   }
 }
 
+// ========================================
+// Test 8: API-level persistence through /api/config
+// ========================================
+
+async function runApiPersistenceTests() {
+  if (!process.env.TEST_PORT) {
+    console.log('\nSkipping API persistence tests (TEST_PORT not set)');
+    return;
+  }
+  
+  const http = require('http');
+  const PORT = process.env.TEST_PORT;
+  const HOST = 'localhost';
+  
+  function makeApiRequest(path, method = 'GET', body = null) {
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: HOST,
+        port: PORT,
+        path: path,
+        method: method,
+        timeout: 10000,
+        headers: body ? { 'Content-Type': 'application/json' } : {}
+      };
+      
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            resolve({ 
+              status: res.statusCode, 
+              body: data ? JSON.parse(data) : null 
+            });
+          } catch (e) {
+            reject(new Error(`Failed to parse JSON: ${e.message}`));
+          }
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+      if (body) {
+        req.write(JSON.stringify(body));
+      }
+      req.end();
+    });
+  }
+  
+  console.log('\nTest 8: API-level persistence through /api/config...');
+  
+  const originalConfigResponse = await makeApiRequest('/api/config');
+  const originalConfig = originalConfigResponse.body;
+  
+  try {
+    const testConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: ['openai/gpt-4', 'google/gemini-pro', 'anthropic/claude-sonnet']
+        },
+        sisyphus: {
+          model: 'google/gemini-pro',
+          fallback_models: ['anthropic/claude-opus-4-5']
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    const saveResponse = await makeApiRequest('/api/config', 'POST', testConfig);
+    assert.strictEqual(saveResponse.status, 200, 'POST /api/config should return 200');
+    assert.strictEqual(saveResponse.body.success, true, 'Save should succeed');
+    
+    const getConfigResponse = await makeApiRequest('/api/config');
+    assert.strictEqual(getConfigResponse.status, 200, 'GET /api/config should return 200');
+    
+    assert.ok(
+      Array.isArray(getConfigResponse.body.agents.oracle.fallback_models),
+      'fallback_models should be an array'
+    );
+    assert.deepStrictEqual(
+      getConfigResponse.body.agents.oracle.fallback_models,
+      ['openai/gpt-4', 'google/gemini-pro', 'anthropic/claude-sonnet'],
+      'Valid fallback_models should be persisted correctly'
+    );
+    
+    assert.deepStrictEqual(
+      getConfigResponse.body.agents.sisyphus.fallback_models,
+      ['anthropic/claude-opus-4-5'],
+      'Sisyphus fallback_models should be persisted correctly'
+    );
+    
+    console.log('  ✓ Valid fallback_models persisted correctly');
+    
+    const malformedConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: ['valid/model', 'invalid', null, 123, '', 'another/valid']
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    const malformedResponse = await makeApiRequest('/api/config', 'POST', malformedConfig);
+    assert.strictEqual(malformedResponse.status, 200, 'Malformed config should still save');
+    
+    const verifyMalformed = await makeApiRequest('/api/config');
+    assert.deepStrictEqual(
+      verifyMalformed.body.agents.oracle.fallback_models,
+      ['valid/model', 'invalid', null, 123, '', 'another/valid'],
+      'Malformed values stored as-is (sanitization at read time)'
+    );
+    
+    console.log('  ✓ Malformed fallback_models handled (sanitization at read time)');
+    
+    const emptyConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: []
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    await makeApiRequest('/api/config', 'POST', emptyConfig);
+    
+    const verifyEmpty = await makeApiRequest('/api/config');
+    assert.deepStrictEqual(
+      verifyEmpty.body.agents.oracle.fallback_models,
+      [],
+      'Empty fallback_models array should be persisted'
+    );
+    
+    console.log('  ✓ Empty fallback_models array persisted');
+    
+    const stringConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: 'single/model'
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    await makeApiRequest('/api/config', 'POST', stringConfig);
+    
+    const agentsResponse = await makeApiRequest('/api/agents');
+    const oracleAgent = agentsResponse.body.agents.find(a => a.name === 'oracle');
+    
+    assert.deepStrictEqual(
+      oracleAgent.configuredFallbackModels,
+      ['single/model'],
+      'String fallback_models should be normalized to array on read'
+    );
+    
+    console.log('  ✓ String fallback_models normalized on read');
+    
+    const complexConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: ['openai/gpt-4'],
+          temperature: 0.7,
+          max_tokens: 4096,
+          customField: 'preserved'
+        }
+      },
+      customTopLevel: 'also-preserved',
+      nestedCustom: {
+        deep: {
+          value: 'preserved-too'
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    await makeApiRequest('/api/config', 'POST', complexConfig);
+    
+    const verifyComplex = await makeApiRequest('/api/config');
+    
+    assert.strictEqual(
+      verifyComplex.body.agents.oracle.temperature,
+      0.7,
+      'Agent temperature should be preserved'
+    );
+    assert.strictEqual(
+      verifyComplex.body.agents.oracle.max_tokens,
+      4096,
+      'Agent max_tokens should be preserved'
+    );
+    assert.strictEqual(
+      verifyComplex.body.agents.oracle.customField,
+      'preserved',
+      'Custom agent field should be preserved'
+    );
+    assert.strictEqual(
+      verifyComplex.body.customTopLevel,
+      'also-preserved',
+      'Custom top-level field should be preserved'
+    );
+    assert.deepStrictEqual(
+      verifyComplex.body.nestedCustom,
+      { deep: { value: 'preserved-too' } },
+      'Nested custom field should be preserved'
+    );
+    
+    console.log('  ✓ Unrelated config data preserved');
+    
+    const mcpsTestConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: ['openai/gpt-4']
+        }
+      },
+      mcps: {
+        websearch_exa: {
+          url: 'https://api.exa.ai/search',
+          enabled: true
+        },
+        custom_tool: {
+          url: 'https://custom.tool.api',
+          enabled: false,
+          custom_setting: 'preserved'
+        }
+      },
+      top_level_custom: 'should-be-preserved'
+    };
+    
+    await makeApiRequest('/api/config', 'POST', mcpsTestConfig);
+    
+    const verifyMcps = await makeApiRequest('/api/config');
+    
+    assert.ok(
+      verifyMcps.body.mcps,
+      'mcps section should exist'
+    );
+    assert.strictEqual(
+      verifyMcps.body.mcps.websearch_exa.url,
+      'https://api.exa.ai/search',
+      'websearch_exa URL should be preserved'
+    );
+    assert.strictEqual(
+      verifyMcps.body.mcps.websearch_exa.enabled,
+      true,
+      'websearch_exa enabled should be preserved'
+    );
+    assert.strictEqual(
+      verifyMcps.body.mcps.custom_tool.custom_setting,
+      'preserved',
+      'custom MCP setting should be preserved'
+    );
+    assert.strictEqual(
+      verifyMcps.body.top_level_custom,
+      'should-be-preserved',
+      'Top-level custom field should be preserved'
+    );
+    assert.deepStrictEqual(
+      verifyMcps.body.agents.oracle.fallback_models,
+      ['openai/gpt-4'],
+      'fallback_models should coexist with mcps'
+    );
+    
+    console.log('  ✓ mcps section preserved through round-trip');
+    
+    const multiAgentWithFallbacks = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: ['openai/gpt-4', 'google/gemini-pro']
+        },
+        sisyphus: {
+          model: 'anthropic/claude-opus-4-5',
+          fallback_models: ['openai/gpt-5.2']
+        },
+        librarian: {
+          model: 'google/gemini-3-flash',
+          fallback_models: ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o']
+        },
+        hephaestus: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: []
+        },
+        metis: {
+          model: 'google/gemini-3-pro'
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    await makeApiRequest('/api/config', 'POST', multiAgentWithFallbacks);
+    
+    const verifyMulti = await makeApiRequest('/api/config');
+    
+    assert.deepStrictEqual(
+      verifyMulti.body.agents.oracle.fallback_models,
+      ['openai/gpt-4', 'google/gemini-pro'],
+      'Oracle fallback_models should be persisted'
+    );
+    assert.deepStrictEqual(
+      verifyMulti.body.agents.sisyphus.fallback_models,
+      ['openai/gpt-5.2'],
+      'Sisyphus fallback_models should be persisted'
+    );
+    assert.deepStrictEqual(
+      verifyMulti.body.agents.librarian.fallback_models,
+      ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o'],
+      'Librarian fallback_models should be persisted'
+    );
+    assert.deepStrictEqual(
+      verifyMulti.body.agents.hephaestus.fallback_models,
+      [],
+      'Hephaestus empty fallback_models should be persisted'
+    );
+    assert.strictEqual(
+      verifyMulti.body.agents.metis.hasOwnProperty('fallback_models'),
+      false,
+      'Metis should not have fallback_models key'
+    );
+    
+    console.log('  ✓ Multiple agents with different fallback_models handled');
+    
+    const invalidFallbackConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: [
+            'valid/model-1',
+            'invalid-no-slash',
+            '',
+            null,
+            123,
+            { invalid: 'object' },
+            'valid/model-2',
+            '   ',
+            'another/valid'
+          ]
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    await makeApiRequest('/api/config', 'POST', invalidFallbackConfig);
+    
+    const agentsVerify = await makeApiRequest('/api/agents');
+    const oracleAgentVerify = agentsVerify.body.agents.find(a => a.name === 'oracle');
+    
+    assert.deepStrictEqual(
+      oracleAgentVerify.configuredFallbackModels,
+      ['valid/model-1', 'valid/model-2', 'another/valid'],
+      'Invalid entries should be sanitized on read'
+    );
+    
+    const persistedConfig = await makeApiRequest('/api/config');
+    
+    assert.ok(
+      Array.isArray(persistedConfig.body.agents.oracle.fallback_models),
+      'Persisted fallback_models should be an array'
+    );
+    
+    console.log('  ✓ Invalid fallback_models sanitized on read');
+    
+    const configWithOrder = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-3-opus',
+          fallback_models: ['z-provider/last', 'a-provider/first', 'm-provider/middle']
+        }
+      },
+      mcps: originalConfig.mcps || {}
+    };
+    
+    await makeApiRequest('/api/config', 'POST', configWithOrder);
+    
+    const verifyOrder = await makeApiRequest('/api/config');
+    
+    assert.deepStrictEqual(
+      verifyOrder.body.agents.oracle.fallback_models,
+      ['z-provider/last', 'a-provider/first', 'm-provider/middle'],
+      'Fallback order should be preserved exactly as provided'
+    );
+    
+    const agentsVerifyOrder = await makeApiRequest('/api/agents');
+    const oracleVerifyOrder = agentsVerifyOrder.body.agents.find(a => a.name === 'oracle');
+    
+    assert.deepStrictEqual(
+      oracleVerifyOrder.configuredFallbackModels,
+      ['z-provider/last', 'a-provider/first', 'm-provider/middle'],
+      'Order should be preserved through normalization'
+    );
+    
+    console.log('  ✓ Fallback_models order preserved');
+    
+    console.log('\nAPI persistence tests passed!');
+    
+  } finally {
+    if (originalConfig) {
+      await makeApiRequest('/api/config', 'POST', originalConfig);
+    }
+  }
+}
+
 run();
+
+runApiPersistenceTests().catch(err => {
+  console.error('API persistence test error:', err.message);
+  process.exit(1);
+});
