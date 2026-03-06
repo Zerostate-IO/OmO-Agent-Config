@@ -6,7 +6,8 @@
 
 const assert = require('assert');
 
-// Import from core module instead ofconst { normalizeFallbackModels, calculateFallbackDiff } = require('../lib/core/fallback-models');
+// Import from core module instead of
+const { normalizeFallbackModels, calculateFallbackDiff } = require('../lib/core/fallback-models');
 const { getModelDisplay } = require('../lib/web/app.js');
 
 // ========================================
@@ -18,11 +19,6 @@ console.log('Testing normalizeFallbackModels...');
 {
     const result = normalizeFallbackModels(null);
     assert.deepStrictEqual(result, []);
-}
-
-}
-
-assert.deepStrictEqual(result, []);
 }
 
 // Test: normalizeFallbackModels with undefined input
@@ -61,7 +57,8 @@ console.log('Testing calculateFallbackDiff...');
     const oldFallback = ['c/d', 'e/f'];
     const newFallback = ['e/f', 'c/d']
     const result = calculateFallbackDiff(oldFallback, newFallback)
-    assert.strictEqual(result.reordered, true,    assert.deepStrictEqual(result.added, [])
+    assert.strictEqual(result.reordered, true);
+    assert.deepStrictEqual(result.added, []);
     assert.deepStrictEqual(result.removed, [])
     assert.strictEqual(result.hasChanges, true)
 }
@@ -203,15 +200,17 @@ const oldState = {
         agents: {
             oracle: { model: 'a/b', fallback_models: ['c/d', 'e/f'] }
         }
-    };
-    const newState = {
-        currentConfig: {
+    }
+};
+const newState = {
+    currentConfig: {
         agents: {
             oracle: { model: 'a/b', fallback_models: ['e/f', 'c/d'] }
         }
-    };
-    state.savedConfig = oldState.savedConfig;
-    state.currentConfig = newState.currentConfig
+    }
+};
+state.savedConfig = oldState.savedConfig;
+state.currentConfig = newState.currentConfig;
 
     const changes = getPendingModelChanges()
     
