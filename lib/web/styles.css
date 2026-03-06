@@ -298,31 +298,22 @@ body {
 .badge.warning-badge { background-color: var(--color-warning); color: var(--color-bg); }
 .badge.warning-badge-avoid { background-color: var(--color-error); color: white; }
 
-/* Unprofiled agent badge */
 .badge.unprofiled-badge {
-    background-color: var(--color-warning);
+    background-color: var(--color-text-secondary);
     color: var(--color-bg);
-    font-size: 0.65rem;
-    font-style: italic;
-    cursor: help;
 }
 
-.model-assigned {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    margin-top: var(--spacing-sm);
+.badge.duplicate-badge {
+    background-color: var(--color-success);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
 }
 
-.model-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
-}
-
-.model-actions .btn {
-    flex: 1;
-    font-size: 0.8rem;
-    padding: var(--spacing-xs) var(--spacing-sm);
+.model-select-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Footer */
@@ -1905,9 +1896,8 @@ body {
     font-style: italic;
 }
 
-.diagnostics-hints {
+ .diagnostics-hints {
     list-style: none;
-    padding: 0;
     margin: 0;
     background-color: var(--color-bg);
     padding: var(--spacing-sm);
@@ -2005,7 +1995,7 @@ body {
     font-size: 0.85rem;
 }
  
-.fallback-item-controls .btn-icon:first-child:disabled,
+ .fallback-item-controls .btn-icon:first-child:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
@@ -2095,13 +2085,6 @@ body {
     background-color: var(--color-bg);
 }
 
- border-color: var(--color-primary);
-}
-
-.fallback-editor-actions .btn-secondary {
-    border-color: var(--color-primary);
-}
-
 .fallback-editor-actions .btn-danger {
     background-color: var(--color-error);
     color: white;
@@ -2111,16 +2094,16 @@ body {
     background-color: var(--color-error);
     border-color: var(--color-error);
 }
- 
+
 .fallback-editor-actions .btn-primary:hover {
     background-color: var(--color-primary-hover);
 }
- 
+
 .fallback-editor-actions .btn-secondary {
     background-color: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
 }
- 
+
 .fallback-editor-actions .btn-secondary:hover {
     background-color: var(--color-bg);
 }
