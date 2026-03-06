@@ -408,10 +408,10 @@ const html = `
 </html>
 `;
 
-(global as describe => {
-    describe('Fallback Editor UI Contract Tests', describe);
+(global => {
+    describe('Fallback Editor UI Contract Tests', () => {
         
-        describe('isProviderModelId validation', describe, {
+        describe('isProviderModelId validation', () => {
             it('validates correct provider/model format', function() {
                 assert.strictEqual(isProviderModelId('anthropic/claude-3-5-sonnet'), true);
                 assert.strictEqual(isProviderModelId('openai/gpt-4'), true);
@@ -433,7 +433,7 @@ const html = `
             });
         });
         
-        describe('Modal functionality', describe, {
+        describe('Modal functionality', () => {
             beforeEach(function() {
                 openFallbackEditor('sisyphus');
             });
@@ -442,7 +442,7 @@ const html = `
                 closeModal();
             });
             
-            it('modal opens with correct title and function() {
+            it('modal opens with correct title', function() {
                 const title = document.getElementById('modal-title');
                 assert.ok(title.textContent.includes('Fallback Models'));
             });
@@ -471,7 +471,7 @@ const html = `
             });
         });
         
-        describe('Reorder controls', describe, {
+        describe('Reorder controls', () => {
             beforeEach(function() {
                 openFallbackEditor('sisyphus');
             });
@@ -503,7 +503,7 @@ const html = `
             });
         });
         
-        describe('Add/Remove functionality', describe, {
+        describe('Add/Remove functionality', () => {
             beforeEach(function() {
                 openFallbackEditor('sisyphus');
             });
@@ -537,7 +537,7 @@ const html = `
             });
         });
         
-        describe('Save/Cancel functionality', describe, {
+        describe('Save/Cancel functionality', () => {
             beforeEach(function() {
                 openFallbackEditor('sisyphus');
             });
