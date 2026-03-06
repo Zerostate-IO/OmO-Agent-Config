@@ -300,6 +300,16 @@ if (hasMismatches) {
     echo "Running backup and drift-check tests..."
     node tests/backup-drift-test.js || { echo "  ❌ Backup and drift-check tests failed"; exit 1; }
     
+    # Run fallback model validation tests
+    echo ""
+    echo "Running fallback model validation tests..."
+    node tests/fallback-models-test.js || { echo "  ❌ Fallback model validation tests failed"; exit 1; }
+    
+    # Run fallback config roundtrip tests
+    echo ""
+    echo "Running fallback config roundtrip tests..."
+    node tests/fallback-config-roundtrip-test.js || { echo "  ❌ Fallback config roundtrip tests failed"; exit 1; }
+    
     echo ""
     echo "✅ API tests complete"
     ;;
