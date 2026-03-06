@@ -138,6 +138,7 @@ Output:
 | 0 | No drift detected (or network unavailable, graceful) |
 | 1 | Drift detected (only with `--exit-on-drift` flag) |
 | 2 | Network error or parsing failure |
+| 3 | Unresolved upstream SHA in strict mode |
 
 **CI/CD usage:**
 ```bash

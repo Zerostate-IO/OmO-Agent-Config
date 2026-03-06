@@ -19,6 +19,68 @@ OmO Agent Config is a local web UI (served by a zero-dependency Node.js HTTP ser
 - **Easy Restore** - One-click restore to default configuration
 - **Search & Filter** - Quickly find models by provider, name, or capabilities
 - **Agent Information** - View detailed information about Oh My Opencode's built-in agents
+- **Fallback Customization** - Customize per-agent `fallback_models` lists to prioritize which models to use when your primary model is unavailable
+- **Strict Upstream Checks** - Verify upstream compatibility with strict mode checks
+- **Health Check Commands** - Monitor upstream schema and capability changes with `upstream-health-check.js`
+
+### Fallback Model Configuration
+
+Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fallback_models` key, which accepts an ordered array of model IDs in `provider/model` format:
+
+```json
+{
+  "agents": {
+    "oracle": {
+      "model": "openai/gpt-5.2",
+      "fallback_models": [
+        "anthropic/claude-sonnet-4-5",
+        "google/gemini-3-pro"
+      ]
+    },
+    "sisyphus": {
+      "model": "anthropic/claude-opus-4-5"
+      "fallback_models": [
+        "google/gemini-3-pro",
+        "anthropic/claude-sonnet-4-5"
+      ]
+    }
+  }
+}
+```
+
+**Example:**
+```json
+{
+  "agents": {
+    "explore": {
+      "model": "github-copilot/grok-code-fast-1",
+      "fallback_models": [
+        "openai/gpt-5.4",
+        "anthropic/claude-sonnet-4-5"
+      ]
+    }
+  }
+}
+```
+
+### Difference Between Configured and upstream fallbacks
+
+- **Configured fallbacks** (`fallback_models` in config)
+  - User-defined, editable via UI or CLI
+  - Saved in `oh-my-opencode.jsonc`
+  - Used by Oh My Opencode runtime at API errors
+  - Priority: **User's chosen order** matters
+
+- **Upstream fallbacks** (`fallbackChain` in agent metadata)
+  - Read-only, fetched from upstream agent documentation
+  - Defines Oh My Opencode's recommended priority chain
+  - Based on agent capabilities and requirements
+  - Cannot be edited directly
+  - Displayed in UI for reference only
+
+**Important:** The tool preserves both fields separately in the API responses:
+- `configuredFallbackModels` - User's configured list
+- `fallbackChain` - Upstream recommendation chain
 
 ## Prerequisites
 
@@ -99,7 +161,7 @@ Running `opencode-agent-config` (with no arguments) starts a local server and op
 
 The tool includes intelligent recommendations for different agent types:
 
-The defaults track the Oh My Opencode v3.x agent lineup.
+These defaults track the Oh My Opencode v3.x agent lineup, along with additional fallback chain definitions for each agent. For better error recovery.
 
 ## Model Capabilities Legend
 

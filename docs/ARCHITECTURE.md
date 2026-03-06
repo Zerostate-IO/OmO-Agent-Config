@@ -14,6 +14,13 @@ This document defines the internal boundaries between core modules in `lib/core/
 | `models.js` | Model discovery, parsing, formatting | OpenCode CLI (`opencode models --verbose`) |
 | `model-requirements.js` | Upstream fallback chain definitions + resolution logic | Oh My Opencode upstream agent requirements |
 | `agents.js` | Agent metadata, recommendation orchestration | GitHub agent docs + local heuristics |
+| `fallback-models.js` | Fallback model normalization and validation | Local user configuration |
+
+| Module | Responsibility | Source of Truth |
+|--------|----------------|-----------------|
+| `models.js` | Model discovery, parsing, formatting | OpenCode CLI (`opencode models --verbose`) |
+| `model-requirements.js` | Upstream fallback chain definitions + resolution logic | Oh My Opencode upstream agent requirements |
+| `agents.js` | Agent metadata, recommendation orchestration | GitHub agent docs + local heuristics |
 
 ---
 
@@ -63,17 +70,19 @@ constants.js <--+--> model-requirements.js <-- agents.js
 ### 2. Fallback Chain Definitions + Resolution: `lib/core/model-requirements.js`
 
 **What it owns:**
-- `AGENT_MODEL_REQUIREMENTS` - Static mapping of agent -> fallback chains
+- `AGENT_MODEL_REQUIREMENTS` - Static mapping of agent -> fallback chains (- **User Fallback Models** - Per-agent `fallback_models` lists configured in `oh-my-opencode.jsonc`
 - `CATEGORY_MODEL_REQUIREMENTS` - Category-based fallback chains
 - Provider-specific model ID transforms (e.g., GitHub Copilot naming)
 - Model ID normalization (punctuation-tolerant matching)
 - Fallback chain resolution logic (`resolveModelFromChain()`)
 - Gating condition checks (`isAnyFallbackEntryAvailable()`, etc.)
 
-**What it does NOT own:**
+**What it does not own:**
 - Agent metadata fetching (that's `agents.js`)
 - Model discovery (that's `models.js`)
 - Final recommendation scoring
+
+- **Fallback Model Normalization** - Local fallback list sanitization (`lib/core/fallback-models.js`)
 
 **Why it stays separate:**
 1. **Upstream parity** - The fallback chain definitions mirror Oh My Opencode's internal model requirements. Keeping them in a dedicated file makes it easy to sync with upstream changes.
