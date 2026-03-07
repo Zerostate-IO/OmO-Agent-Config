@@ -13,6 +13,7 @@ function runTests() {
     let modalClosed = false;
     let editorReopened = false;
     let reopenAgentName = null;
+    let reopenOptions = null;
     let lastStatusMsg = '';
     let lastStatusType = '';
     
@@ -38,7 +39,12 @@ function runTests() {
         if (trimmed.length === 0) return false;
         const slashIndex = trimmed.indexOf('/');
         if (slashIndex <= 0 || slashIndex === trimmed.length - 1) return false;
-        return true;
+        const provider = trimmed.substring(0, slashIndex);
+        const providerPattern = /^[-a-z0-9_.]+$/i;
+        if (!providerPattern.test(provider)) return false;
+        const model = trimmed.substring(slashIndex + 1);
+        const modelPattern = /^[-a-z0-9_.:/]+$/i;
+        return modelPattern.test(model);
     }
     
     // Mock functions
@@ -46,9 +52,10 @@ function runTests() {
         modalClosed = true;
     };
     
-    global.openFallbackEditor = function(agentName) {
+    global.openFallbackEditor = function(agentName, options) {
         editorReopened = true;
         reopenAgentName = agentName;
+        reopenOptions = options || null;
     };
     
     global.updateStatus = function(msg, type) {
@@ -74,6 +81,10 @@ function runTests() {
         }
         
         global.state.fallbackEditorState.fallbacks.push(modelId);
+        const restoreState = {
+            fallbacks: [...global.state.fallbackEditorState.fallbacks],
+            originalFallbacks: [...global.state.fallbackEditorState.originalFallbacks]
+        };
         
         global.updateStatus('Added ' + modelId + ' to fallback list', 'success');
         
@@ -83,7 +94,7 @@ function runTests() {
         // Re-open the fallback editor to show the updated list
         // Use setTimeout to avoid modal close/open animation conflicts
         setTimeout(() => {
-            global.openFallbackEditor(global.state.fallbackEditorState.agentName);
+            global.openFallbackEditor(global.state.fallbackEditorState.agentName, { restoreState: restoreState });
         }, 50);
     }
     
@@ -93,6 +104,12 @@ function runTests() {
     assert.strictEqual(modalClosed, true, 'Modal should be closed');
     assert.strictEqual(editorReopened, true, 'Fallback editor should be reopened');
     assert.strictEqual(reopenAgentName, 'sisyphus', 'Should reopen editor for correct agent');
+    assert.ok(reopenOptions && reopenOptions.restoreState, 'Reopen should preserve in-memory fallback state');
+    assert.deepStrictEqual(
+        reopenOptions.restoreState.fallbacks,
+        ['anthropic/claude-sonnet-4', 'openai/gpt-5'],
+        'Reopen state should include newly added fallback'
+    );
     assert.strictEqual(global.state.fallbackEditorState.fallbacks.length, 2, 'Should have 2 fallbacks');
     assert.strictEqual(global.state.fallbackEditorState.fallbacks[1], 'openai/gpt-5', 'Should have added correct model');
     
@@ -105,6 +122,7 @@ function runTests() {
     
     modalClosed = false;
     editorReopened = false;
+    reopenOptions = null;
     lastStatusMsg = '';
     lastStatusType = '';
     
@@ -124,6 +142,7 @@ function runTests() {
     
     modalClosed = false;
     editorReopened = false;
+    reopenOptions = null;
     lastStatusMsg = '';
     lastStatusType = '';
     
@@ -137,6 +156,27 @@ function runTests() {
     console.log('  ✅ Invalid format rejected');
     console.log('  ✅ Modal stays open');
     console.log('  ✅ User informed: ' + lastStatusMsg + '\n');
+
+    console.log('Test 4: Nested Fireworks model ID');
+
+    modalClosed = false;
+    editorReopened = false;
+    reopenOptions = null;
+    lastStatusMsg = '';
+    lastStatusType = '';
+
+    selectModelForFallback('fireworks-ai/accounts/fireworks/models/deepseek-v3p1');
+
+    assert.strictEqual(modalClosed, true, 'Modal should close for valid nested Fireworks ID');
+    assert.strictEqual(editorReopened, true, 'Editor should reopen for valid nested Fireworks ID');
+    assert.strictEqual(lastStatusType, 'success', 'Nested Fireworks ID should be accepted');
+    assert.ok(
+        reopenOptions && reopenOptions.restoreState && reopenOptions.restoreState.fallbacks.includes('fireworks-ai/accounts/fireworks/models/deepseek-v3p1'),
+        'Reopen state should preserve nested Fireworks fallback ID'
+    );
+
+    console.log('  ✅ Nested Fireworks fallback accepted');
+    console.log('  ✅ Nested fallback preserved across modal reopen\n');
     
     // Restore setTimeout
     global.setTimeout = originalSetTimeout;
