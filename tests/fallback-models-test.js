@@ -29,6 +29,7 @@ function run() {
   assert.strictEqual(isProviderModelId('google/gemini-pro'), true, 'google/gemini-pro should be valid');
   assert.strictEqual(isProviderModelId('anthropic/claude-opus-4'), true, 'anthropic/claude-opus-4 should be valid');
   assert.strictEqual(isProviderModelId('fireworks-ai/llama-3'), true, 'fireworks-ai/llama-3 should be valid');
+  assert.strictEqual(isProviderModelId('fireworks-ai/accounts/fireworks/models/deepseek-v3p1'), true, 'nested Fireworks model IDs should be valid');
   assert.strictEqual(isProviderModelId('groq/llama-3.1-8b'), true, 'groq/llama-3.1-8b should be valid');
   assert.strictEqual(isProviderModelId('azure/gpt-4o:latest'), true, 'azure/gpt-4o:latest should be valid (colon in model)');
   
@@ -39,8 +40,8 @@ function run() {
   assert.strictEqual(isProviderModelId('/gpt-4'), false, 'missing provider should be invalid');
   assert.strictEqual(isProviderModelId('openai/'), false, 'trailing slash should be invalid');
   assert.strictEqual(isProviderModelId('/'), false, 'just slash should be invalid');
-  assert.strictEqual(isProviderModelId('openai/gpt/4'), false, 'multiple slashes should be invalid');
   assert.strictEqual(isProviderModelId('provider with space/model'), false, 'space in provider should be invalid');
+  assert.strictEqual(isProviderModelId('openai/model with space'), false, 'space in model should be invalid');
   
   // Edge cases: wrong types
   assert.strictEqual(isProviderModelId(null), false, 'null should be invalid');
@@ -83,6 +84,11 @@ function run() {
   {
     const result = normalizeFallbackModels(['  openai/gpt-4  ', '\tgoogle/gemini-pro\t']);
     assert.deepStrictEqual(result, ['openai/gpt-4', 'google/gemini-pro'], 'should trim whitespace');
+  }
+  
+  {
+    const result = normalizeFallbackModels(['fireworks-ai/accounts/fireworks/models/deepseek-v3p1']);
+    assert.deepStrictEqual(result, ['fireworks-ai/accounts/fireworks/models/deepseek-v3p1'], 'should preserve nested model paths');
   }
   
   // Edge case: filter out invalid entries

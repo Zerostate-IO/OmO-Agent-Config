@@ -905,6 +905,29 @@ openai/gpt-5.2
   assert.strictEqual(result.partial, false, 'Expected partial=false for complete success');
 });
 
+test('parseModels: handles multi-segment provider model paths', () => {
+  const nestedPathOutput = `fireworks-ai/accounts/fireworks/models/deepseek-v3p1
+{
+  "id": "accounts/fireworks/models/deepseek-v3p1",
+  "name": "DeepSeek V3.1",
+  "providerID": "fireworks-ai"
+}
+nvidia/deepseek-ai/deepseek-r1
+{
+  "id": "deepseek-ai/deepseek-r1",
+  "name": "DeepSeek R1",
+  "providerID": "nvidia"
+}`;
+
+  const result = parseModels(nestedPathOutput);
+  assert.strictEqual(result.models.length, 2, 'Expected multi-segment headers to parse');
+  assert.strictEqual(result.models[0].id, 'fireworks-ai/accounts/fireworks/models/deepseek-v3p1', 'Expected Fireworks header ID to be preserved');
+  assert.strictEqual(result.models[0].modelID, 'accounts/fireworks/models/deepseek-v3p1', 'Expected nested Fireworks modelID to be preserved');
+  assert.strictEqual(result.models[1].id, 'nvidia/deepseek-ai/deepseek-r1', 'Expected NVIDIA header ID to be preserved');
+  assert.strictEqual(result.errors.length, 0, 'Expected no errors for nested model paths');
+  assert.strictEqual(result.partial, false, 'Expected partial=false for valid nested paths');
+});
+
 test('parseModels: handles malformed JSON with warnings', () => {
   const malformedOutput = `anthropic/claude-opus-4-6
 {
