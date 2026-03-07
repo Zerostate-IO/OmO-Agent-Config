@@ -296,6 +296,31 @@ function testExpectedSourcesExtraction() {
   console.log('    ✓ expected sources extracted correctly');
 }
 
+function testSingularOpenCodeSchemaExtraction() {
+  console.log('  test: singular OpenCode schema extraction (provider/plugin)');
+
+  clearCache();
+  clearConfigs();
+
+  writeOpenCodeConfig({
+    provider: {
+      fireworks: { apiKey: 'fw-key' },
+      openai: { apiKey: 'oa-key' }
+    },
+    plugin: ['opencode-antigravity-auth', { name: 'oh-my-opencode' }]
+  });
+
+  const { expected, fromConfig } = collectExpectedProviders();
+
+  assert.ok(fromConfig.providersNormalized.includes('fireworks-ai'), 'singular provider key should normalize fireworks -> fireworks-ai');
+  assert.ok(fromConfig.providersNormalized.includes('openai'), 'singular provider key should include openai');
+  assert.ok(fromConfig.pluginHints.includes('opencode-antigravity-auth'), 'singular plugin list should include string entry');
+  assert.ok(fromConfig.pluginHints.includes('oh-my-opencode'), 'singular plugin list should include named entry');
+  assert.ok(expected.includes('fireworks-ai'), 'expected should include normalized fireworks provider');
+
+  console.log('    ✓ singular schema extracted correctly');
+}
+
 function testMismatchClassification() {
   console.log('  test: mismatch classification logic');
   
@@ -328,6 +353,36 @@ function testMismatchClassification() {
   assert.strictEqual(mismatches.aliasNormalizedMatches[0].severity, 'info', 'aliasNormalizedMatches should have info severity');
   
   console.log('    ✓ mismatches classified correctly');
+}
+
+function testBuildDiagnosticsUsesStructuredExpectedSources() {
+  console.log('  test: buildProviderDiagnostics returns structured expected sources');
+
+  clearCache();
+  clearConfigs();
+
+  writeModelsCache(['openai', 'fireworks-ai']);
+  writeOpenCodeConfig({
+    provider: {
+      fireworks: { apiKey: 'fw-key' }
+    },
+    plugin: 'oh-my-opencode'
+  });
+  writeOhMyOpenCodeConfig({
+    agents: {
+      oracle: { model: 'openai/gpt-5.2' }
+    }
+  });
+
+  const result = buildProviderDiagnostics();
+
+  assert.ok(Array.isArray(result.sources.fromConfig.providersNormalized), 'fromConfig should expose providersNormalized');
+  assert.ok(result.sources.fromConfig.providersNormalized.includes('fireworks-ai'), 'fromConfig should include normalized Fireworks provider');
+  assert.ok(Array.isArray(result.sources.fromConfig.pluginHints), 'fromConfig should expose pluginHints');
+  assert.ok(result.sources.fromConfig.pluginHints.includes('oh-my-opencode'), 'fromConfig should include singular plugin hint');
+  assert.ok(Array.isArray(result.sources.fromAssignments.sources), 'fromAssignments should expose structured sources');
+
+  console.log('    ✓ buildProviderDiagnostics returns expected structured sources');
 }
 
 function testDeterministicSorting() {
@@ -366,7 +421,9 @@ function run() {
   testCacheStatusHandling();
   testLMStudioPolicyFieldPresence();
   testExpectedSourcesExtraction();
+  testSingularOpenCodeSchemaExtraction();
   testMismatchClassification();
+  testBuildDiagnosticsUsesStructuredExpectedSources();
   testDeterministicSorting();
   
   console.log('\nprovider-diagnostics-test: ok');
