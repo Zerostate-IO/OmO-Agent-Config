@@ -26,14 +26,22 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-
+const {
+  UPSTREAM_OWNER,
+  UPSTREAM_REPO,
+  UPSTREAM_BRANCH,
+  UPSTREAM_REPO_FULL,
+  getModelRequirementsUrl,
+  getAgentsApiUrl,
+  getCommitsApiUrl
+} = require('../lib/upstream-constants');
 // Configuration
 const UPSTREAM = {
-  repo: 'code-yeongyu/oh-my-opencode',
-  branch: 'dev',
-  modelRequirementsUrl: 'https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/shared/model-requirements.ts',
-  agentsApiUrl: 'https://api.github.com/repos/code-yeongyu/oh-my-opencode/contents/src/agents?ref=dev',
-  commitsApiUrl: 'https://api.github.com/repos/code-yeongyu/oh-my-opencode/commits/dev'
+  repo: UPSTREAM_REPO_FULL,
+  branch: UPSTREAM_BRANCH,
+  modelRequirementsUrl: getModelRequirementsUrl(),
+  agentsApiUrl: getAgentsApiUrl(),
+  commitsApiUrl: getCommitsApiUrl()
 };
 
 const CACHE_FILE = path.join(os.homedir(), '.config', 'opencode', 'cache', 'upstream-snapshot.json');

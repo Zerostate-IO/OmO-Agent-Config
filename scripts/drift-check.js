@@ -23,13 +23,20 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const {
+  UPSTREAM_OWNER,
+  UPSTREAM_REPO,
+  UPSTREAM_BRANCH,
+  getModelRequirementsUrl,
+  getCommitsApiUrl
+} = require('../lib/upstream-constants');
 
 // Configuration
 const UPSTREAM = {
-  repo: 'code-yeongyu/oh-my-opencode',
-  branch: 'dev',
-  modelRequirementsUrl: 'https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/shared/model-requirements.ts',
-  commitsApiUrl: 'https://api.github.com/repos/code-yeongyu/oh-my-opencode/commits/dev'
+  repo: `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`,
+  branch: UPSTREAM_BRANCH,
+  modelRequirementsUrl: getModelRequirementsUrl(),
+  commitsApiUrl: getCommitsApiUrl()
 };
 
 const LOCAL_FILE = path.join(__dirname, '..', 'lib', 'core', 'model-requirements.js');
@@ -1020,7 +1027,7 @@ async function main() {
   }
 
   console.log(`${colors.cyan}💡 Run the following to update:${colors.reset}`);
-  console.log(`   1. Review upstream changes at: https://github.com/code-yeongyu/oh-my-opencode/blob/dev/src/shared/model-requirements.ts`);
+  console.log(`   1. Review upstream changes at: https://github.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/blob/${UPSTREAM_BRANCH}/src/shared/model-requirements.ts`);
   console.log(`   2. Update ${LOCAL_FILE}`);
   console.log(`   3. Update pinned SHA in file header or .omo-upstream-sha`);
   console.log('');

@@ -18,6 +18,10 @@ This starts a local HTTP server (default `http://localhost:3456`) and opens your
 - CORS policy defaults to same-origin with no wildcard (`*`) allowed
 - No authentication is required since it only accepts connections from the local machine
 
+**Environment variables:**
+- `OMO_PORT` - Override the default port (3456)
+- `OMO_ALLOW_EXTERNAL_HOST` - Set to `true` to bind to `0.0.0.0` (not recommended)
+
 ## Web UI
 
 ### Fallback Editor
@@ -65,8 +69,46 @@ Fallback models must use the `provider/model` format:
 - Examples: `anthropic/claude-sonnet-4-6`, `google/gemini-3.1-pro`, `openai/gpt-5.4`
 - Invalid entries (missing slash, empty strings, non-strings) are automatically removed
 ### Order Preservation
-The fallback list order is preserved exactly as configured
- If you configure `["model-a", "model-b", "model-c"]`, the fallback chain will try models in that exact order.### Views
+The fallback list order is preserved exactly as configured. If you configure `["model-a", "model-b", "model-c"]`, the fallback chain will try models in that exact order.
+
+## Provider Policies
+
+Provider policies control how models are ranked and displayed. Access them via the **📊 Policies** button in the header.
+
+### What You Can Configure
+
+- **Billing Model**: subscription, metered, free, or unknown (affects SUB/PAY/FREE badge display)
+- **Speed Tier**: fast, normal, or slow (fast models get a ⚡ badge)
+- **Priority Tier**: 1-99, lower is better (influences ranking when multiple providers offer the same model)
+
+### Example Override
+
+Create `~/.config/opencode/provider-policies.json` to customize:
+
+```json
+{
+  "version": 1,
+  "providers": {
+    "fireworks-ai": {
+      "billingModel": "metered",
+      "speedTier": "fast",
+      "priorityTier": 1
+    }
+  }
+}
+```
+
+### Ranking Logic
+
+Lower total score = better ranking. The algorithm considers:
+1. Priority tier (lower = better)
+2. Speed bonus (fast = -5, slow = +5)
+3. Context size bonus (200K+ = -20, 128K+ = -10)
+4. Cost (lower = better)
+
+Use the UI for easy editing, or edit the JSON file directly. Reset to defaults anytime via the Policies modal.
+
+## Views
 
 - **Agents**: view current agent→model assignments and change an agent’s model.
 - **Models**: browse the model catalog with search + provider/context/capability filters.

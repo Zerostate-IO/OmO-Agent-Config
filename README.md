@@ -1,12 +1,14 @@
 # OmO Agent Config
 
-> Local web UI + CLI wrapper for managing [Oh My OpenCode (Oh My Opencode)](https://github.com/code-yeongyu/oh-my-opencode) agent model assignments
+> Local web UI + CLI wrapper for managing [Oh My OpenCode (Oh My Opencode)](https://github.com/code-yeongyu/oh-my-openagent) agent model assignments
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 ## Overview
 
 OmO Agent Config is a local web UI (served by a zero-dependency Node.js HTTP server) plus a small CLI wrapper. It helps you browse available models from `opencode models --verbose`, assign models to OmO agents, and manage named configuration profiles without hand-editing JSON.
+
+> **Note:** The upstream repository and documentation have been renamed to `oh-my-openagent`, but the config file (`oh-my-opencode.jsonc`), package names, and schema identifiers remain `oh-my-opencode` for backward compatibility.
 
 ### Key Features
 
@@ -159,9 +161,14 @@ Running `opencode-agent-config` (with no arguments) starts a local server and op
 
 ## Agent Profiles
 
-The tool includes intelligent recommendations for different agent types:
+Oh My Opencode includes specialized agents for different tasks. The web UI shows smart model recommendations based on each agent's needs:
 
-These defaults track the Oh My Opencode v3.x agent lineup, along with additional fallback chain definitions for each agent. For better error recovery.
+- **oracle** - Read-only consultant for architecture and debugging. Needs strong reasoning (Claude Opus, GPT-5).
+- **sisyphus** - Primary orchestrator that plans, delegates, and ships. Best with extended thinking models.
+- **explore** - Fast codebase navigator. Optimized for quick searches and structure mapping.
+- **multimodal-looker** - Visual analyst for PDFs, images, and screenshots. Requires multimodal capabilities.
+
+Each agent has a fallback chain defined upstream, and you can customize your own `fallback_models` list per agent.
 
 ## Model Capabilities Legend
 
@@ -235,19 +242,16 @@ The tool includes these defaults for easy restoration:
 {
   "agents": {
     "oracle": {
-      "model": "opencode/gpt-5.2"
+      "model": "openai/gpt-5.4"
     },
-    "Sisyphus": {
-      "model": "google/claude-opus-4-5-thinking"
+    "sisyphus": {
+      "model": "anthropic/claude-opus-4-5"
+    },
+    "explore": {
+      "model": "opencode/gpt-5-nano"
     },
     "librarian": {
-      "model": "google/claude-sonnet-4-5"
-    },
-    "frontend-ui-ux-engineer": {
-      "model": "google/gemini-3-pro-high"
-    },
-    "document-writer": {
-      "model": "google/gemini-3-flash"
+      "model": "opencode/big-pickle"
     },
     "multimodal-looker": {
       "model": "google/gemini-3-flash"
@@ -314,7 +318,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- [Oh My Opencode](https://github.com/opencode-ai/oh-my-opencode) - The agent framework this tool configures
+- [Oh My Opencode](https://github.com/code-yeongyu/oh-my-openagent) - The agent framework this tool configures
 - [OpenCode](https://opencode.ai) - The AI coding assistant
 
 ## Support

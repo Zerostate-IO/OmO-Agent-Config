@@ -1218,3 +1218,43 @@ test.describe('OmO Agent Config UI', () => {
     await testPage.close();
   });
 
+
+  test('rename-aware upstream recommendation text in agent detail modal', async ({ page }) => {
+    // Wait for agents to load
+    await page.waitForTimeout(2000);
+
+    // Wait for window.openAgentDocumentation to be available
+    await page.waitForFunction(
+      () => typeof window.openAgentDocumentation === 'function',
+      { timeout: 10000 }
+    );
+
+    // Open agent documentation modal via exposed function
+    await page.evaluate(() => window.openAgentDocumentation());
+    await page.waitForTimeout(500);
+
+    // Wait for agent items to be rendered in the modal
+    await page.waitForTimeout(1000);  // Wait for agent list to render
+
+    // Click on the sisyphus agent-item to open details
+    const sisyphusItem = await page.locator('.agent-item:has-text("sisyphus")');
+    await sisyphusItem.click();
+
+    // Wait for modal to show agent details
+    await page.waitForTimeout(500);
+
+    // Verify modal is open
+    const modal = await page.locator('#modal');
+    await expect(modal).toBeVisible();
+
+    // Assert the modal contains 'oh-my-openagent'
+    const modalBody = await page.locator('#modal-body');
+    await expect(modalBody).toContainText('oh-my-openagent');
+
+    // Assert the modal contains 'oh-my-opencode.jsonc'
+    await expect(modalBody).toContainText('oh-my-opencode.jsonc');
+
+    // Take screenshot for verification
+    await page.screenshot({ path: 'test-results/upstream-recommendation-text.png' });
+  });
+});

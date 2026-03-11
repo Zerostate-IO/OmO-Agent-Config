@@ -13,11 +13,15 @@
  */
 
 const https = require('https');
+const {
+  UPSTREAM_API_BASE_URL,
+  UPSTREAM_BRANCH
+} = require('../lib/upstream-constants');
 
-// Configuration
-const GITHUB_API_BASE = 'https://api.github.com/repos/code-yeongyu/oh-my-opencode';
+// Configuration (uses centralized upstream constants)
+const GITHUB_API_BASE = UPSTREAM_API_BASE_URL;
 const DOCS_PATH = '/contents/docs';
-const REF = 'dev';
+const REF = UPSTREAM_BRANCH;
 
 // Keywords that indicate discouraged model signals
 const WARNING_KEYWORDS = [

@@ -32,8 +32,29 @@ The server is designed for localhost use only:
 
 If you need to access from another device, use SSH port forwarding instead of changing the bind address.
 
+### Environment Variables
 
-### Browser doesn’t open
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OMO_PORT` | `3456` | Explicit port binding. Skips port probing. |
+| `OMO_ALLOW_EXTERNAL_HOST` | unset | Set to `1` to allow non-localhost `Host` headers. **Security risk**: only use on trusted networks. |
+| `OMO_NO_OPEN` | unset | Set to `1` to disable automatic browser opening. |
+
+Examples:
+
+```bash
+# Bind to a specific port
+OMO_PORT=8080 opencode-agent-config
+
+# Run in CI/headless environments
+OMO_NO_OPEN=1 opencode-agent-config
+
+# Allow external access (caution: exposes to network)
+OMO_ALLOW_EXTERNAL_HOST=1 opencode-agent-config
+```
+
+
+### Browser doesn't open
 
 The server still starts. Open the printed URL manually.
 
@@ -81,6 +102,25 @@ are not appearing:
 The model discovery path is entirely CLI-driven. This tool is a configuration UI,
 not a model discovery engine. No custom localhost probing is implemented for LM Studio
 or any other local inference server.
+
+### Provider Diagnostics
+
+If providers appear in `opencode models --verbose` but not in the UI, check the diagnostics endpoint:
+
+```bash
+curl http://localhost:3456/api/providers/diagnostics
+```
+
+This returns:
+- `sources` - providers found in config files and agent assignments
+- `mismatches` - providers expected but missing, or discovered but not expected
+- `cacheStatus` - age of the models cache
+- `hints` - actionable suggestions
+
+Common issues:
+- **Stale cache**: Cache is older than your config file. Click Refresh in the UI.
+- **Provider name mismatch**: Some providers use different naming in different contexts. Check `normalized.discovered` vs `normalized.expected`.
+- **Missing from opencode.json**: Provider must be configured in `~/.config/opencode/opencode.json` first.
 
 ## Config files
 

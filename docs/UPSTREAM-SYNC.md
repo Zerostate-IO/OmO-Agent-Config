@@ -6,7 +6,7 @@ This document describes how to synchronize OmO Agent Config with the upstream Oh
 
 **What is upstream sync?**
 
-Upstream sync is the process of comparing your local `lib/core/model-requirements.js` against the upstream Oh My Opencode source (`code-yeongyu/oh-my-opencode` on the `dev` branch). This detects:
+Upstream sync is the process of comparing your local `lib/core/model-requirements.js` against the upstream Oh My Opencode source (`code-yeongyu/oh-my-openagent` on the `dev` branch). This detects:
 
 - **New agents** added to upstream that you don't have locally
 - **Removed agents** that no longer exist upstream
@@ -16,6 +16,8 @@ Upstream sync is the process of comparing your local `lib/core/model-requirement
 **Why it matters:**
 
 Oh My Opencode evolves rapidly. New agents are added, model recommendations change, and fallback chains are updated. Running drift checks ensures your local configuration stays compatible and takes advantage of improvements.
+
+> **Note:** The upstream repository has been renamed to `code-yeongyu/oh-my-openagent`, but the config file (`oh-my-opencode.jsonc`) and schema identifiers remain unchanged for backward compatibility.
 
 ---
 
@@ -33,7 +35,7 @@ node scripts/drift-check.js
 ```
 🔍 OmO Upstream Drift Check
    Local: /path/to/lib/core/model-requirements.js
-   Upstream: https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/shared/model-requirements.ts
+   Upstream: https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/src/shared/model-requirements.ts
    Mode: check (read-only)
 
 📊 Comparison Results:
@@ -56,7 +58,7 @@ Agents with changed fallback chains or gating:
      local chain:    openai/gpt-4.1 → anthropic/claude-opus-4-5
 
 💡 Run the following to update:
-   1. Review upstream changes at: https://github.com/code-yeongyu/oh-my-opencode/blob/dev/src/shared/model-requirements.ts
+   1. Review upstream changes at: https://github.com/code-yeongyu/oh-my-openagent/blob/dev/src/shared/model-requirements.ts
    2. Update /path/to/lib/core/model-requirements.js
    3. Update pinned SHA in file header or .omo-upstream-sha
 ```
@@ -144,6 +146,91 @@ Output:
 ```bash
 # Fail the build if drift is detected
 node scripts/drift-check.js --exit-on-drift || exit 1
+```
+
+---
+
+## Upstream Health Check Commands
+
+The `upstream-health-check.js` script provides a unified health check that combines drift detection and schema validation into a single report.
+
+### Basic Health Check (Human-Readable)
+
+```bash
+node scripts/upstream-health-check.js
+```
+
+**Expected output when healthy:**
+```
+🔍 OmO Upstream Health Check
+
+Running drift check...
+Running schema check...
+
+📊 Health Check Results:
+
+✅ Drift: NO DRIFT
+✅ Schema: VALID
+
+✅ Upstream is healthy
+```
+
+**Expected output when issues detected:**
+```
+🔍 OmO Upstream Health Check
+
+Running drift check...
+Running schema check...
+
+📊 Health Check Results:
+
+⚠️  Drift: DETECTED
+✗ Schema: ERROR (Request failed)
+
+📋 Actions Required:
+   - drift detected
+   - schema check failed
+
+⚠️  Health check completed with warnings
+```
+
+### Machine-Readable Output (JSON)
+
+```bash
+node scripts/upstream-health-check.js --json
+```
+
+**Expected output:**
+```json
+{
+  "healthy": true,
+  "drift": {
+    "hasDrift": false,
+    "pinnedSha": "abc123...",
+    "currentSha": "def456..."
+  },
+  "schema": {
+    "valid": true,
+    "errors": []
+  },
+  "actionRequired": []
+}
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Upstream is healthy (no drift, schema valid) |
+| 1 | Action required (drift detected or schema issues) |
+| 2 | Network error or parsing failure |
+
+### CI/CD Integration
+
+```yaml
+# Example GitHub Actions step
+- name: Check upstream health
+  run: node scripts/upstream-health-check.js --json | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); if(!d.healthy) process.exit(1)"
 ```
 
 ---
@@ -273,7 +360,7 @@ node scripts/upstream-snapshot.js
   "version": "1.0.0",
   "generatedAt": "2026-02-20T10:30:00.000Z",
   "sourceRef": {
-    "repo": "code-yeongyu/oh-my-opencode",
+    "repo": "code-yeongyu/oh-my-openagent",
     "branch": "dev",
     "commitSha": "def456789abc..."
   },

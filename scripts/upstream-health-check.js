@@ -28,6 +28,19 @@ try {
   process.exit(2);
 }
 
+// Import upstream constants for metadata reporting
+let UPSTREAM_OWNER, UPSTREAM_REPO, UPSTREAM_BRANCH, UPSTREAM_GITHUB_URL;
+try {
+  const constants = require('../lib/upstream-constants');
+  UPSTREAM_OWNER = constants.UPSTREAM_OWNER;
+  UPSTREAM_REPO = constants.UPSTREAM_REPO;
+  UPSTREAM_BRANCH = constants.UPSTREAM_BRANCH;
+  UPSTREAM_GITHUB_URL = constants.UPSTREAM_GITHUB_URL;
+} catch (e) {
+  console.error('Failed to load lib/upstream-constants.js:', e.message);
+  process.exit(2);
+}
+
 // Configuration
 const DRIFT_CHECK_SCRIPT = path.join(__dirname, 'drift-check.js');
 const CACHE_DIR = path.join(os.homedir(), '.config', 'opencode', 'cache');
@@ -100,13 +113,20 @@ function runDriftCheck(strictUpstream = false) {
 async function runSchemaCheck() {
   try {
     const result = await checkAndUpdateOhMyOpenCodeSchema({ cacheDir: CACHE_DIR });
+    
+    // Map validation result to report
+    const valid = result.valid !== false ? result.valid : true;
+    
     return {
-      valid: true,
+      valid,
       updated: result.updated,
       tag: result.tag,
       url: result.url,
       diff: result.diff,
-      error: null
+      error: result.error || null,
+      missingDefinitions: result.missingDefinitions || null,
+      definitionsError: result.definitionsError || null,
+      parseError: result.parseError || null
     };
   } catch (e) {
     return {
@@ -115,7 +135,10 @@ async function runSchemaCheck() {
       tag: null,
       url: null,
       diff: null,
-      error: e.message
+      error: e.message,
+      missingDefinitions: null,
+      definitionsError: null,
+      parseError: null
     };
   }
 }
@@ -180,6 +203,21 @@ function buildActionRequired(driftResult, schemaResult) {
   if (schemaResult) {
     if (!schemaResult.valid) {
       actions.push('schema check failed');
+    }
+    
+    // Check for missing definitions
+    if (schemaResult.missingDefinitions && schemaResult.missingDefinitions.length > 0) {
+      actions.push(`schema missing definitions: ${schemaResult.missingDefinitions.join(', ')}`);
+    }
+    
+    // Check for parse error
+    if (schemaResult.parseError) {
+      actions.push(`schema parse error: ${schemaResult.parseError}`);
+    }
+    
+    // Check for definitions error
+    if (schemaResult.definitionsError) {
+      actions.push(`schema definitions error: ${schemaResult.definitionsError}`);
     }
     
     if (schemaResult.diff && schemaResult.diff.hasChanges) {
@@ -269,11 +307,21 @@ async function main() {
   }
   
   const schemaResult = await runSchemaCheck();
+  
+  // Add upstream metadata to schema report
   report.schema = {
     valid: schemaResult.valid,
     updated: schemaResult.updated,
     tag: schemaResult.tag,
-    error: schemaResult.error
+    url: schemaResult.url,
+    error: schemaResult.error,
+    missingDefinitions: schemaResult.missingDefinitions,
+    definitionsError: schemaResult.definitionsError,
+    upstream: {
+      repo: `${UPSTREAM_OWNER}/${UPSTREAM_REPO}`,
+      branch: UPSTREAM_BRANCH,
+      githubUrl: UPSTREAM_GITHUB_URL
+    }
   };
   
   // Build actionRequired array
@@ -311,6 +359,11 @@ async function main() {
       console.log(`${colors.green}✓ Schema: UPDATED (tag: ${report.schema.tag})${colors.reset}`);
     } else {
       console.log(`${colors.green}✓ Schema: OK (tag: ${report.schema.tag})${colors.reset}`);
+    }
+    
+    // Show upstream metadata
+    if (report.schema.upstream) {
+      console.log(`${colors.gray}   Upstream: ${report.schema.upstream.repo} (${report.schema.upstream.branch})${colors.reset}`);
     }
   }
   
