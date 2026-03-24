@@ -33,17 +33,17 @@ Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fa
 {
   "agents": {
     "oracle": {
-      "model": "openai/gpt-5.2",
+      "model": "openai/gpt-5.4",
       "fallback_models": [
-        "anthropic/claude-sonnet-4-5",
-        "google/gemini-3-pro"
+        "anthropic/claude-sonnet-4-6",
+        "google/gemini-3.1-pro"
       ]
     },
     "sisyphus": {
-      "model": "anthropic/claude-opus-4-5"
+      "model": "anthropic/claude-opus-4-6",
       "fallback_models": [
-        "google/gemini-3-pro",
-        "anthropic/claude-sonnet-4-5"
+        "google/gemini-3.1-pro",
+        "anthropic/claude-sonnet-4-6"
       ]
     }
   }
@@ -58,7 +58,7 @@ Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fa
       "model": "github-copilot/grok-code-fast-1",
       "fallback_models": [
         "openai/gpt-5.4",
-        "anthropic/claude-sonnet-4-5"
+        "anthropic/claude-sonnet-4-6"
       ]
     }
   }
@@ -245,16 +245,34 @@ The tool includes these defaults for easy restoration:
       "model": "openai/gpt-5.4"
     },
     "sisyphus": {
-      "model": "anthropic/claude-opus-4-5"
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "atlas": {
+      "model": "anthropic/claude-sonnet-4-6"
     },
     "explore": {
-      "model": "opencode/gpt-5-nano"
+      "model": "github-copilot/grok-code-fast-1"
     },
     "librarian": {
-      "model": "opencode/big-pickle"
+      "model": "opencode-go/minimax-m2.5"
     },
     "multimodal-looker": {
-      "model": "google/gemini-3-flash"
+      "model": "openai/gpt-5.4"
+    },
+    "prometheus": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "metis": {
+      "model": "anthropic/claude-opus-4-6"
+    },
+    "momus": {
+      "model": "openai/gpt-5.4"
+    },
+    "hephaestus": {
+      "model": "openai/gpt-5.3-codex"
+    },
+    "sisyphus-junior": {
+      "model": "anthropic/claude-sonnet-4-6"
     }
   }
 }

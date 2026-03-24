@@ -54,10 +54,14 @@ const mockModels = [
   { id: 'github-copilot/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', providerID: 'github-copilot' },
   { id: 'openai/gpt-5.3-codex', name: 'GPT-5.3 Codex', providerID: 'openai' },
   { id: 'openai/gpt-5.4', name: 'GPT-5.4', providerID: 'openai' },
-  { id: 'google/gemini-3-pro', name: 'Gemini 3 Pro', providerID: 'google' },
-  { id: 'kimi-for-coding/k2p5', name: 'Kimi K2.5', providerID: 'kimi-for-coding' },
-  { id: 'opencode/kimi-k2.5-free', name: 'Kimi K2.5 Free', providerID: 'opencode' },
-  { id: 'opencode/big-pickle', name: 'Big Pickle', providerID: 'opencode' }
+  { id: 'google/gemini-3.1-pro', name: 'Gemini 3.1 Pro', providerID: 'google' },
+  { id: 'google/gemini-3-flash', name: 'Gemini 3 Flash', providerID: 'google' },
+  { id: 'kimi-for-coding/k2p5', name: 'Kimi K2.5 Pro', providerID: 'kimi-for-coding' },
+  { id: 'opencode-go/kimi-k2.5', name: 'Kimi K2.5', providerID: 'opencode-go' },
+  { id: 'opencode-go/glm-5', name: 'GLM 5', providerID: 'opencode-go' },
+  { id: 'opencode-go/minimax-m2.5', name: 'Minimax M2.5', providerID: 'opencode-go' },
+  { id: 'opencode/big-pickle', name: 'Big Pickle', providerID: 'opencode' },
+  { id: 'opencode/gpt-5-nano', name: 'GPT-5 Nano', providerID: 'opencode' }
 ];
 
 // Build availability maps for different scenarios
@@ -67,7 +71,8 @@ const fullAvailability = {
   'google': true,
   'github-copilot': true,
   'kimi-for-coding': true,
-  'opencode': true
+  'opencode': true,
+  'opencode-go': true
 };
 
 const limitedAvailability = {
@@ -112,6 +117,12 @@ test('GitHub Copilot transform: gemini-3-pro → gemini-3-pro-preview', () => {
   const result = transformModelForProvider('github-copilot', 'gemini-3-pro');
   assert.strictEqual(result, 'gemini-3-pro-preview',
     `Expected gemini-3-pro-preview, got ${result}`);
+});
+
+test('GitHub Copilot transform: gemini-3.1-pro → gemini-3.1-pro-preview', () => {
+  const result = transformModelForProvider('github-copilot', 'gemini-3.1-pro');
+  assert.strictEqual(result, 'gemini-3.1-pro-preview',
+    `Expected gemini-3.1-pro-preview, got ${result}`);
 });
 
 test('GitHub Copilot transform: gemini-3-flash → gemini-3-flash-preview', () => {
@@ -185,13 +196,13 @@ test('Hephaestus gating: passes when openai available', () => {
   assert.strictEqual(result, true, 'Expected gating to pass with openai available');
 });
 
-test('Hephaestus gating: fails when only github-copilot available', () => {
+test('Hephaestus gating: passes when github-copilot available (upstream expanded)', () => {
   const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
   const onlyCopilot = { 'github-copilot': true };
   
   const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyCopilot);
   
-  assert.strictEqual(result, false, 'Expected gating to fail with github-copilot only');
+  assert.strictEqual(result, true, 'Expected gating to pass with github-copilot (upstream added it to requiresProvider)');
 });
 
 test('Hephaestus gating: fails when no required providers available', () => {
@@ -414,8 +425,8 @@ test('Model scoring: formatted models have context, hasThinking, costDisplay', (
       capabilities: { reasoning: true, input: { image: true } }
     },
     {
-      id: 'openai/gpt-5.2',
-      name: 'GPT-5.2',
+      id: 'openai/gpt-5.4',
+      name: 'GPT-5.4',
       provider: 'openai',
       context: 128000,
       hasThinking: false,
@@ -890,10 +901,10 @@ test('parseModels: handles valid model output', () => {
   "name": "Claude Opus 4.6",
   "providerID": "anthropic"
 }
-openai/gpt-5.2
+openai/gpt-5.4
 {
-  "id": "gpt-5.2",
-  "name": "GPT-5.2",
+  "id": "gpt-5.4",
+  "name": "GPT-5.4",
   "providerID": "openai"
 }`;
   
@@ -933,9 +944,9 @@ test('parseModels: handles malformed JSON with warnings', () => {
 {
   "id": "claude-opus-4-6",
   "name": "Claude Opus 4.6"
-openai/gpt-5.2
+openai/gpt-5.4
 {
-  "id": "gpt-5.2",
+  "id": "gpt-5.4",
   "name": "GPT-5.2"
 }`;
   
@@ -998,7 +1009,7 @@ test('parseModels: handles mixed valid and invalid models', () => {
   "id": "claude-opus-4-6",
   "name": "Claude Opus 4.6"
 }
-openai/gpt-5.2
+openai/gpt-5.4
 {invalid json here}
 google/gemini-3-pro
 {

@@ -151,7 +151,7 @@ function run() {
     // Verify sisyphus fallbacks too
     assert.deepStrictEqual(
       loaded.config.agents.sisyphus.fallback_models,
-      ['openai/gpt-5.2'],
+      ['openai/gpt-5.4'],
       'Sisyphus fallback models should be preserved'
     );
     
@@ -208,6 +208,16 @@ function run() {
       loaded2.config.nestedUnknown,
       { deep: { value: 'also-preserved' } },
       'nestedUnknown should be preserved'
+    );
+    assert.deepStrictEqual(
+      loaded2.config.disabled_tools,
+      ['github-copilot/commit', 'github-copilot/push'],
+      'disabled_tools array should be preserved'
+    );
+    assert.strictEqual(
+      loaded2.config.upstream_sync_enabled,
+      false,
+      'upstream_sync_enabled should be preserved'
     );
     
     console.log('Test 2: PASS');
@@ -324,8 +334,8 @@ function run() {
           fallback_models: ['openai/gpt-4', 'google/gemini-pro', 'anthropic/claude-sonnet']
         },
         sisyphus: {
-          model: 'anthropic/claude-opus-4-5',
-          fallback_models: ['openai/gpt-5.2']
+          model: 'anthropic/claude-opus-4-6',
+          fallback_models: ['openai/gpt-5.4']
         }
       },
       customField: 'preserved',
@@ -512,7 +522,7 @@ async function runApiPersistenceTests() {
         },
         sisyphus: {
           model: 'google/gemini-pro',
-          fallback_models: ['anthropic/claude-opus-4-5']
+          fallback_models: ['anthropic/claude-opus-4-6']
         }
       },
       mcps: originalConfig.mcps || {}
@@ -537,7 +547,7 @@ async function runApiPersistenceTests() {
     
     assert.deepStrictEqual(
       getConfigResponse.body.agents.sisyphus.fallback_models,
-      ['anthropic/claude-opus-4-5'],
+      ['anthropic/claude-opus-4-6'],
       'Sisyphus fallback_models should be persisted correctly'
     );
     
@@ -724,19 +734,19 @@ async function runApiPersistenceTests() {
           fallback_models: ['openai/gpt-4', 'google/gemini-pro']
         },
         sisyphus: {
-          model: 'anthropic/claude-opus-4-5',
-          fallback_models: ['openai/gpt-5.2']
+          model: 'anthropic/claude-opus-4-6',
+          fallback_models: ['openai/gpt-5.4']
         },
         librarian: {
           model: 'google/gemini-3-flash',
-          fallback_models: ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o']
+          fallback_models: ['anthropic/claude-sonnet-4-6', 'openai/gpt-4o']
         },
         hephaestus: {
           model: 'anthropic/claude-3-opus',
           fallback_models: []
         },
         metis: {
-          model: 'google/gemini-3-pro'
+          model: 'google/gemini-3.1-pro'
         }
       },
       mcps: originalConfig.mcps || {}
@@ -753,12 +763,12 @@ async function runApiPersistenceTests() {
     );
     assert.deepStrictEqual(
       verifyMulti.body.agents.sisyphus.fallback_models,
-      ['openai/gpt-5.2'],
+      ['openai/gpt-5.4'],
       'Sisyphus fallback_models should be persisted'
     );
     assert.deepStrictEqual(
       verifyMulti.body.agents.librarian.fallback_models,
-      ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o'],
+      ['anthropic/claude-sonnet-4-6', 'openai/gpt-4o'],
       'Librarian fallback_models should be persisted'
     );
     assert.deepStrictEqual(

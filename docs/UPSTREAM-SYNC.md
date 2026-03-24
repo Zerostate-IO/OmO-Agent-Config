@@ -50,12 +50,12 @@ node scripts/drift-check.js
 ⚠ Drift detected!
 
 New agents in upstream (need to add):
-   + new-agent-name: openai/gpt-5.2 → anthropic/claude-sonnet-4-5
+   + new-agent-name: openai/gpt-5.4 → anthropic/claude-sonnet-4-6
 
 Agents with changed fallback chains or gating:
    ~ existing-agent:
-     upstream chain: openai/gpt-5.2 → anthropic/claude-opus-4-5
-     local chain:    openai/gpt-4.1 → anthropic/claude-opus-4-5
+      upstream chain: openai/gpt-5.4 → anthropic/claude-opus-4-6
+      local chain:    openai/gpt-4.1 → anthropic/claude-opus-4-5
 
 💡 Run the following to update:
    1. Review upstream changes at: https://github.com/code-yeongyu/oh-my-openagent/blob/dev/src/shared/model-requirements.ts

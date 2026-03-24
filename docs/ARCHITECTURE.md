@@ -108,7 +108,7 @@ constants.js <--+--> model-requirements.js <-- agents.js
 ### 3. Agent Metadata + Recommendation Orchestration: `lib/core/agents.js`
 
 **What it owns:**
-- Fetching agent docs from GitHub (`code-yeongyu/oh-my-opencode`)
+- Fetching agent docs from GitHub (`code-yeongyu/oh-my-openagent`)
 - Parsing agent TypeScript files for metadata
 - Caching agent metadata (`~/.config/opencode/cache/agents/`)
 - Building availability maps from available models

@@ -140,7 +140,7 @@ if (args.length === 0) {
 ├───────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
 │  │ Anthropic   │ │ OpenAI      │ │ Google      │           │
-│  │ opus-4.5    │ │ gpt-5.2     │ │ gemini-3    │           │
+  │  │ opus-4.5    │ │ gpt-5.4     │ │ gemini-3    │           │
 │  │ 200K R T $$$│ │ 200K R $$   │ │ 1048K R I P│           │
 │  │ Used by: S  │ │ Used by: O,M│ │ Used by: L  │           │
 │  │ [Alternatives]│ [Alternatives]│ [Alternatives]│         │
@@ -179,7 +179,7 @@ if (args.length === 0) {
 │                                         │
 │  ALTERNATIVES (95% capability match)     │
 │  ┌────────────┐ ┌────────────┐ ┌──────┐│
-│  │ sonnet-4.5 │ │ gpt-5.2    │ │ gem ││
+  │  │ sonnet-4.5 │ │ gpt-5.4    │ │ gem ││
 │  │ 128K • R   │ │ 200K • R •T│ │1048K││
 │  │ $$ • 65%   │ │ $$$ • same │ │ $   ││
 │  │ [Switch]   │ │ [Switch]   │ │[Sw]││
@@ -301,10 +301,10 @@ if (args.length === 0) {
 We fetch agent information from multiple GitHub sources:
 
 1. **AGENTS.md** - Overview table with models, fallbacks, costs
-   - URL: `https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/agents/AGENTS.md`
+   - URL: `https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/src/agents/AGENTS.md`
    
 2. **Individual agent files** - Full system prompts and behavior
-   - URL pattern: `https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/agents/{agent-name}.ts`
+   - URL pattern: `https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/src/agents/{agent-name}.ts`
    - Examples: `sisyphus.ts`, `oracle.ts`, `librarian.ts`
 
 3. **Agent directories** - Complex agents with variants
@@ -319,7 +319,7 @@ We fetch agent information from multiple GitHub sources:
 
 async function fetchAgentDocumentation(agentName) {
   // 1. Fetch the main agent TypeScript file
-  const agentUrl = `https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/agents/${agentName}.ts`;
+  const agentUrl = `https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/src/agents/${agentName}.ts`;
   const agentCode = await fetchText(agentUrl);
   
   // 2. Extract metadata from PROMPT_METADATA export
@@ -474,7 +474,7 @@ The tool must handle **agents that don't exist yet** — when Oh My Opencode add
 ### Discovery Sources
 
 **1. GitHub Repository Structure**
-- Fetch directory listing: `https://api.github.com/repos/code-yeongyu/oh-my-opencode/contents/src/agents`
+- Fetch directory listing: `https://api.github.com/repos/code-yeongyu/oh-my-openagent/contents/src/agents`
 - Identify new `.ts` files and directories not in local cache
 - Example response shows files like `hephaestus.ts`, `atlas/` (directory)
 
@@ -525,8 +525,8 @@ async function discoverNewAgents() {
 
 async function fetchAndParseAgent(agentName) {
   // Try single file first
-  const fileUrl = `https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/dev/src/agents/${agentName}.ts`;
-  const dirUrl = `https://api.github.com/repos/code-yeongyu/oh-my-opencode/contents/src/agents/${agentName}`;
+const fileUrl = `https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/src/agents/${agentName}.ts`;
+const dirUrl = `https://api.github.com/repos/code-yeongyu/oh-my-openagent/contents/src/agents/${agentName}`;
   
   let agentCode;
   let isDirectory = false;
@@ -1127,7 +1127,7 @@ Query params:
       "modifiedAt": "2025-02-11T18:30:00Z",
       "agents": {
         "sisyphus": "anthropic/claude-sonnet-4-5",
-        "oracle": "openai/gpt-5.2"
+        "oracle": "openai/gpt-5.4"
         // ...
       }
     }

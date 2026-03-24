@@ -11,7 +11,7 @@ When you add an agent via the tool, it creates:
 {
   "agents": {
     "my-custom-agent": {
-      "model": "opencode/gpt-5.2"
+      "model": "opencode/gpt-5.4"
     }
   }
 }
@@ -43,7 +43,7 @@ A complete agent needs (per OpenCode docs):
 {
   "agents": {
     "my-custom-agent": {
-      "model": "opencode/gpt-5.2",
+      "model": "opencode/gpt-5.4",
       "description": "What this agent does and when to use it (required)",
       "prompt": "relative/path/to/prompt.md",
       "temperature": 0,
@@ -81,7 +81,7 @@ System prompt files should use markdown with optional frontmatter:
 ```markdown
 ---
 description: "Strategic reasoning and complex problem solving"
-model: "opencode/gpt-5.2"
+model: "opencode/gpt-5.4"
 temperature: 0
 maxSteps: 50
 ---
@@ -336,7 +336,7 @@ Beyond initial implementation:
 ## References
 
 - [OpenCode Agent Documentation](https://opencode.ai/docs/agents/)
-- [Oh My Opencode GitHub](https://github.com/code-yeongyu/oh-my-opencode)
+- [Oh My OpenAgent GitHub](https://github.com/code-yeongyu/oh-my-openagent)
 - [OpenCode Config Documentation](https://opencode.ai/docs/config/)
 
 ## Version Planning

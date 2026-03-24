@@ -10,14 +10,19 @@
         "fallback_models": ["openai/gpt-4", "google/gemini-pro", "anthropic/claude-sonnet"]
       },
       "sisyphus": {
-        "model": "anthropic/claude-opus-4-5",
-        "fallback_models": ["openai/gpt-5.2"]
+        "model": "anthropic/claude-opus-4-6",
+        "fallback_models": ["openai/gpt-5.4"]
       }
     },
     "customUnknownKey": "should-be-preserved",
     "anotherCustomField": {
       "nested": true,
       "value": 42
-    }
+    },
+    "disabled_tools": [
+      "github-copilot/commit",
+      "github-copilot/push"
+    ],
+    "upstream_sync_enabled": false
   }
 }

@@ -261,8 +261,8 @@ function testExpectedSourcesExtraction() {
   // Setup: oh-my-opencode with agent assignments
   writeOhMyOpenCodeConfig({
     agents: {
-      sisyphus: { model: 'anthropic/claude-opus-4-5' },
-      oracle: { model: 'openai/gpt-5.2' },
+      sisyphus: { model: 'anthropic/claude-opus-4-6' },
+      oracle: { model: 'openai/gpt-5.4' },
       librarian: { model: 'google/gemini-3-flash' }
     }
   });
@@ -370,7 +370,7 @@ function testBuildDiagnosticsUsesStructuredExpectedSources() {
   });
   writeOhMyOpenCodeConfig({
     agents: {
-      oracle: { model: 'openai/gpt-5.2' }
+      oracle: { model: 'openai/gpt-5.4' }
     }
   });
 

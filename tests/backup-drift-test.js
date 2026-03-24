@@ -397,7 +397,7 @@ test('Drift-check: detects different non-first fallback entry', () => {
       sisyphus: {
         fallbackChain: [
           { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'max' },
-          { providers: ['opencode'], model: 'kimi-k2.5-free' },
+          { providers: ['opencode-go'], model: 'kimi-k2.5' },
           { providers: ['opencode'], model: 'big-pickle' }
         ]
       }
@@ -465,7 +465,7 @@ test('Drift-check: detects changed model in non-first entry', () => {
       testAgent: {
         fallbackChain: [
           { providers: ['anthropic'], model: 'claude-opus-4-6' },
-          { providers: ['opencode'], model: 'kimi-k2.5-free' },
+          { providers: ['opencode-go'], model: 'kimi-k2.5' },
           { providers: ['opencode'], model: 'big-pickle' }
         ]
       }
@@ -478,7 +478,7 @@ test('Drift-check: detects changed model in non-first entry', () => {
       testAgent: {
         fallbackChain: [
           { providers: ['anthropic'], model: 'claude-opus-4-6' },
-          { providers: ['opencode'], model: 'glm-5' },
+          { providers: ['opencode-go'], model: 'glm-5' },
           { providers: ['opencode'], model: 'big-pickle' }
         ]
       }
@@ -497,7 +497,7 @@ test('Drift-check: identical chains produce identical signatures', () => {
   const chain = {
     fallbackChain: [
       { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'max' },
-      { providers: ['opencode'], model: 'kimi-k2.5-free' },
+      { providers: ['opencode-go'], model: 'kimi-k2.5' },
       { providers: ['opencode'], model: 'big-pickle' }
     ],
     requiresProvider: ['anthropic', 'github-copilot', 'opencode'],
@@ -516,7 +516,7 @@ test('Drift-check: compareRequirements detects changed agents', () => {
       sisyphus: {
         fallbackChain: [
           { providers: ['anthropic'], model: 'claude-opus-4-6', variant: 'max' },
-          { providers: ['opencode'], model: 'kimi-k2.5-free' }
+          { providers: ['opencode-go'], model: 'kimi-k2.5' }
         ]
       }
     },

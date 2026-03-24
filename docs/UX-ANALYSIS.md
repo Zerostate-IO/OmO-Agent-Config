@@ -247,7 +247,7 @@ These can be implemented easily with high impact:
 - Cancel = Abort operation, return to parent
 
 ### D. Show Model Provider in Agent List
-**Current:** `oracle → opencode/gpt-5.2`
+**Current:** `oracle → openai/gpt-5.4`
 **Proposed:** `oracle → GPT-5.2 (opencode)` with provider in color
 
 ---

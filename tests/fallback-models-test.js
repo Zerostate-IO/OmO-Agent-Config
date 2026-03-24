@@ -639,19 +639,19 @@ async function runApiTests() {
           fallback_models: ['openai/gpt-4', 'google/gemini-pro']
         },
         sisyphus: {
-          model: 'anthropic/claude-opus-4-5',
-          fallback_models: ['openai/gpt-5.2']
+          model: 'anthropic/claude-opus-4-6',
+          fallback_models: ['openai/gpt-5.4']
         },
         librarian: {
           model: 'google/gemini-3-flash',
-          fallback_models: ['anthropic/claude-sonnet-4-5']
+          fallback_models: ['anthropic/claude-sonnet-4-6']
         },
         hephaestus: {
           model: 'anthropic/claude-3-opus',
           fallback_models: [] // Empty array
         },
         metis: {
-          model: 'google/gemini-3-pro'
+          model: 'google/gemini-3.1-pro'
           // No fallback_models key
         }
       },
@@ -675,12 +675,12 @@ async function runApiTests() {
     );
     assert.deepStrictEqual(
       sisyphus10.configuredFallbackModels,
-      ['openai/gpt-5.2'],
+      ['openai/gpt-5.4'],
       'Sisyphus fallback_models should be correct'
     );
     assert.deepStrictEqual(
       librarian10.configuredFallbackModels,
-      ['anthropic/claude-sonnet-4-5'],
+      ['anthropic/claude-sonnet-4-6'],
       'Librarian fallback_models should be correct'
     );
     assert.deepStrictEqual(

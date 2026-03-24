@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-03-24
+
+### Changed
+- **Upstream Sync**: Aligned with `oh-my-openagent` v3.11+ repository rename and model migrations
+- Updated `lib/core/model-requirements.js` with current upstream fallback chains and SHA pin
+- Updated `lib/constants.js` defaults to match current upstream recommendations while preserving legacy provider aliases
+- Refreshed regression test fixtures to remove stale legacy IDs (`kimi-k2.5-free`, outdated GPT/Claude versions) and align with current upstream model names
+- Updated documentation references from `code-yeongyu/oh-my-opencode` to `code-yeongyu/oh-my-openagent`
+- Preserved backward-compatible filenames (`oh-my-opencode.jsonc`, `oh-my-opencode.schema.json`) per plan guardrails
+
+### Added
+- Config round-trip test coverage for `disabled_tools` and unknown upstream keys
+- Upstream metadata tracking in health check reports (repo, branch, GitHub URL)
+
+### Fixed
+- Stale default model versions in `DEFAULTS` object
+- Outdated fallback chains for multiple agents
+- Broken upstream URLs in runtime comments and operator documentation
+
 ## [0.9.2] - 2026-02-25
 
 ### Fixed

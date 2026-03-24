@@ -33,7 +33,7 @@ function createCachedSnapshot(cacheDir, sha) {
     version: '1.0.0',
     generatedAt: new Date().toISOString(),
     sourceRef: {
-      repo: 'code-yeongyu/oh-my-opencode',
+      repo: 'code-yeongyu/oh-my-openagent',
       branch: 'dev',
       commitSha: sha
     },
