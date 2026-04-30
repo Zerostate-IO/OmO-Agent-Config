@@ -3,15 +3,15 @@
 /**
  * Upstream Drift Detection Script
  * Compares local model-requirements.js against upstream Oh My Opencode source
- * 
+ *
  * Usage: node scripts/drift-check.js [--exit-on-drift] [--json] [--refresh] [--pin] [--strict-upstream]
- * 
+ *
  * Modes:
  *   check (default)   - Read-only comparison of local vs upstream
  *   --refresh         - Update cached snapshot and compare
  *   --pin             - Save current upstream SHA to .omo-upstream-sha
  *   --strict-upstream - Fail (non-zero exit) when upstream SHA cannot be resolved
- * 
+ *
  * Exit codes:
  *   0 - No drift detected (or network unavailable, graceful in non-strict mode)
  *   1 - Drift detected (when --exit-on-drift flag is used)
@@ -117,7 +117,7 @@ function getCommitShaFromCache() {
 async function getCommitShaFromUpstreamSnapshot() {
   const { execSync } = require('child_process');
   const tmpFile = path.join(os.tmpdir(), `upstream-snapshot-${Date.now()}.json`);
-  
+
   try {
     const scriptPath = path.join(__dirname, 'upstream-snapshot.js');
     execSync(`node "${scriptPath}" --no-cache --output "${tmpFile}" --json`, {
@@ -125,13 +125,13 @@ async function getCommitShaFromUpstreamSnapshot() {
       timeout: 60000,
       stdio: ['ignore', 'ignore', 'ignore'] // Suppress output
     });
-    
+
     if (fs.existsSync(tmpFile)) {
       const data = JSON.parse(fs.readFileSync(tmpFile, 'utf8'));
       const sha = data?.sourceRef?.commitSha;
       // Clean up temp file
       try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
-      
+
       // Validate SHA is 40-hex
       if (sha && /^[a-f0-9]{40}$/i.test(sha)) {
         return sha;
@@ -166,7 +166,7 @@ function parseModelRequirements(content) {
         .replace(/,\s*([}\]])/g, '$1')
         .replace(/'/g, '"')
         .replace(/(\w+):/g, '"$1":');
-      
+
       result.agents = JSON.parse(cleaned);
     } catch (e) {
       throw new Error(`Failed to parse AGENT_MODEL_REQUIREMENTS: ${e.message}`);
@@ -183,7 +183,7 @@ function parseModelRequirements(content) {
         .replace(/,\s*([}\]])/g, '$1')
         .replace(/'/g, '"')
         .replace(/(\w+):/g, '"$1":');
-      
+
       result.categories = JSON.parse(cleaned);
     } catch (e) {
       throw new Error(`Failed to parse CATEGORY_MODEL_REQUIREMENTS: ${e.message}`);
@@ -200,30 +200,30 @@ function parseModelRequirements(content) {
  */
 async function generateSnapshot(options = {}) {
   const { verbose = false } = options;
-  
+
   if (verbose) {
     console.log(`${colors.cyan}🔍 Fetching upstream snapshot...${colors.reset}`);
   }
-  
+
   // Fetch commit SHA
   const commitSha = await getCommitSha();
-  
+
   if (verbose) {
     console.log(`${colors.gray}   Commit: ${commitSha || 'unknown'}${colors.reset}`);
   }
-  
+
   // Fetch model requirements
   if (verbose) {
     console.log(`${colors.gray}   Fetching model-requirements.ts...${colors.reset}`);
   }
-  
+
   const modelRequirementsContent = await fetchHttps(UPSTREAM.modelRequirementsUrl);
   const modelRequirements = parseModelRequirements(modelRequirementsContent);
-  
+
   if (verbose) {
     console.log(`${colors.gray}   Found ${Object.keys(modelRequirements.agents).length} agents, ${Object.keys(modelRequirements.categories).length} categories${colors.reset}`);
   }
-  
+
   // Build normalized snapshot
   const snapshot = {
     version: '1.0.0',
@@ -231,16 +231,17 @@ async function generateSnapshot(options = {}) {
     sourceRef: {
       repo: UPSTREAM.repo,
       branch: UPSTREAM.branch,
-      commitSha
+      commitSha,
+      modelRequirementsUrl: UPSTREAM.modelRequirementsUrl
     },
     agents: modelRequirements.agents,
     categories: modelRequirements.categories
   };
-  
+
   if (verbose) {
     console.log(`${colors.green}✅ Snapshot generated${colors.reset}`);
   }
-  
+
   return snapshot;
 }
 
@@ -293,15 +294,19 @@ function pinSha(sha) {
  * @param {string} url - URL to fetch
  * @returns {Promise<string>} Response body
  */
-function fetchHttps(url) {
+function fetchHttps(url, options = {}) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 10000 }, (res) => {
+    const reqOpts = {
+      timeout: options.timeout || 10000,
+      headers: options.headers || {}
+    };
+    const req = https.get(url, reqOpts, (res) => {
       if (res.statusCode === 301 || res.statusCode === 302) {
         const redirectUrl = res.headers.location;
-        fetchHttps(redirectUrl).then(resolve).catch(reject);
+        fetchHttps(redirectUrl, options).then(resolve).catch(reject);
         return;
       }
-      
+
       if (res.statusCode !== 200) {
         reject(new Error(`HTTP ${res.statusCode}`));
         return;
@@ -345,7 +350,7 @@ function parseUpstreamRequirements(content) {
         .replace(/,\s*([}\]])/g, '$1')
         .replace(/'/g, '"')
         .replace(/(\w+):/g, '"$1":');
-      
+
       requirements.agents = JSON.parse(cleaned);
     } catch (e) {
       console.warn(`${colors.yellow}⚠ Warning: Could not parse AGENT_MODEL_REQUIREMENTS: ${e.message}${colors.reset}`);
@@ -362,7 +367,7 @@ function parseUpstreamRequirements(content) {
         .replace(/,\s*([}\]])/g, '$1')
         .replace(/'/g, '"')
         .replace(/(\w+):/g, '"$1":');
-      
+
       requirements.categories = JSON.parse(cleaned);
     } catch (e) {
       console.warn(`${colors.yellow}⚠ Warning: Could not parse CATEGORY_MODEL_REQUIREMENTS: ${e.message}${colors.reset}`);
@@ -639,7 +644,7 @@ function getPinnedSha() {
     if (fs.existsSync(PINNED_SHA_FILE)) {
       return fs.readFileSync(PINNED_SHA_FILE, 'utf8').trim();
     }
-    
+
     // Fallback to reading from JS file header
     const content = fs.readFileSync(LOCAL_FILE, 'utf8');
     const match = content.match(/@upstream-sha\s+(\S+)/);
@@ -657,43 +662,43 @@ function getPinnedSha() {
  */
 function buildActionRequired(drift) {
   const actions = [];
-  
+
   if (drift.newAgents.length > 0) {
     for (const agent of drift.newAgents) {
       actions.push(`add agent ${agent}`);
     }
   }
-  
+
   if (drift.missingAgents.length > 0) {
     for (const agent of drift.missingAgents) {
       actions.push(`remove agent ${agent} (no longer in upstream)`);
     }
   }
-  
+
   if (drift.changedAgents.length > 0) {
     for (const change of drift.changedAgents) {
       actions.push(`update chain for agent ${change.name}`);
     }
   }
-  
+
   if (drift.newCategories.length > 0) {
     for (const cat of drift.newCategories) {
       actions.push(`add category ${cat}`);
     }
   }
-  
+
   if (drift.missingCategories.length > 0) {
     for (const cat of drift.missingCategories) {
       actions.push(`remove category ${cat} (no longer in upstream)`);
     }
   }
-  
+
   if (drift.changedCategories.length > 0) {
     for (const change of drift.changedCategories) {
       actions.push(`update chain for category ${change.name}`);
     }
   }
-  
+
   return actions;
 }
 
@@ -708,25 +713,26 @@ async function main() {
   const refreshMode = args.includes('--refresh');
   const pinMode = args.includes('--pin');
   const strictUpstream = args.includes('--strict-upstream');
+  const autoSync = args.includes('--auto-sync');
 
   // Handle --pin mode first (just pin the SHA and exit)
   if (pinMode) {
     try {
       let currentSha = await getCommitSha();
       let shaSource = 'github-api';
-      
+
       // Fallback to cached snapshot if API fails
       if (!currentSha) {
         currentSha = getCommitShaFromCache();
         shaSource = 'cached-snapshot';
       }
-      
+
       // Last resort: run upstream-snapshot.js to fetch SHA
       if (!currentSha) {
         currentSha = await getCommitShaFromUpstreamSnapshot();
         shaSource = 'upstream-snapshot';
       }
-      
+
       // Validate SHA is 40-hex before pinning
       if (!currentSha || !/^[a-f0-9]{40}$/i.test(currentSha)) {
         if (jsonOutput) {
@@ -736,7 +742,7 @@ async function main() {
         }
         process.exit(2);
       }
-      
+
       if (pinSha(currentSha)) {
         if (jsonOutput) {
           console.log(JSON.stringify({ pinnedSha: currentSha, success: true, source: shaSource }, null, 2));
@@ -775,6 +781,12 @@ async function main() {
     changedCategories: [],
     pinnedSha: null,
     currentSha: null,
+    sourceRef: {
+      repo: UPSTREAM.repo,
+      branch: UPSTREAM.branch,
+      commitSha: null,
+      modelRequirementsUrl: UPSTREAM.modelRequirementsUrl
+    },
     actionRequired: [],
     upstreamResolved: true,
     unresolvedReason: null
@@ -825,6 +837,8 @@ async function main() {
         agents: snapshot.agents,
         categories: snapshot.categories
       };
+      // Propagate sourceRef from snapshot
+      output.sourceRef.commitSha = currentSha;
       if (!jsonOutput) {
         console.log(`${colors.green}✅ Cached snapshot updated${colors.reset}`);
         console.log('');
@@ -851,6 +865,11 @@ async function main() {
         categories: cached.categories
       };
       output.upstreamResolved = true;
+      output.sourceRef.commitSha = currentSha;
+      // Propagate cached sourceRef fields if available
+      if (cached.sourceRef?.repo) output.sourceRef.repo = cached.sourceRef.repo;
+      if (cached.sourceRef?.branch) output.sourceRef.branch = cached.sourceRef.branch;
+      if (cached.sourceRef?.modelRequirementsUrl) output.sourceRef.modelRequirementsUrl = cached.sourceRef.modelRequirementsUrl;
     } else {
       // No cache, fetch fresh
       try {
@@ -861,11 +880,12 @@ async function main() {
         currentSha = await getCommitSha();
         upstreamReqs = parseUpstreamRequirements(upstreamContent);
         output.upstreamResolved = true;
+        output.sourceRef.commitSha = currentSha;
       } catch (e) {
         // Track upstream resolution failure
         output.upstreamResolved = false;
         output.unresolvedReason = `Network unavailable or fetch failed: ${e.message}`;
-        
+
         if (strictUpstream) {
           // Strict mode: fail explicitly with actionable error
           output.networkError = e.message;
@@ -878,7 +898,7 @@ async function main() {
           }
           process.exit(3);
         }
-        
+
         if (jsonOutput) {
           output.networkError = e.message;
           console.log(JSON.stringify(output, null, 2));
@@ -1031,6 +1051,41 @@ async function main() {
   console.log(`   2. Update ${LOCAL_FILE}`);
   console.log(`   3. Update pinned SHA in file header or .omo-upstream-sha`);
   console.log('');
+
+  // Auto-sync mode: automatically run provider-aware-sync
+  if (autoSync) {
+    console.log(`${colors.cyan}🔄 Auto-sync mode enabled - running provider-aware-sync...${colors.reset}`);
+
+    const { spawn } = require('child_process');
+    const syncScript = path.join(__dirname, 'provider-aware-sync.js');
+
+    try {
+      const result = spawn.sync('node', [syncScript, '--apply'], {
+        stdio: 'inherit',
+        timeout: 60000
+      });
+
+      if (result.status === 0) {
+        console.log(`${colors.green}✅ Auto-sync completed successfully${colors.reset}`);
+
+        // Update the pinned SHA after successful sync
+        const currentSha = output.currentSha;
+        if (currentSha && /^[a-f0-9]{40}$/i.test(currentSha)) {
+          if (pinSha(currentSha)) {
+            console.log(`${colors.green}✅ Pinned upstream SHA: ${currentSha}${colors.reset}`);
+          }
+        }
+
+        process.exit(0);
+      } else {
+        console.error(`${colors.red}❌ Auto-sync failed with exit code ${result.status}${colors.reset}`);
+        process.exit(result.status || 1);
+      }
+    } catch (e) {
+      console.error(`${colors.red}❌ Auto-sync error: ${e.message}${colors.reset}`);
+      process.exit(1);
+    }
+  }
 
   if (exitOnDrift) {
     process.exit(1);

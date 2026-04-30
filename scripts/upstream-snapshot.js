@@ -578,7 +578,8 @@ async function generateSnapshot(options = {}) {
     sourceRef: {
       repo: UPSTREAM.repo,
       branch: UPSTREAM.branch,
-      commitSha
+      commitSha,
+      modelRequirementsUrl: UPSTREAM.modelRequirementsUrl
     },
     agents,
     categories,
@@ -627,11 +628,23 @@ async function main() {
     process.exit(0);
   } catch (error) {
     if (jsonMode) {
-      // In JSON mode, output error as JSON to stderr
-      console.error(JSON.stringify({
+      const fallbackOutput = {
+        version: VERSION,
+        generatedAt: new Date().toISOString(),
+        sourceRef: {
+          repo: UPSTREAM.repo,
+          branch: UPSTREAM.branch,
+          commitSha: null,
+          modelRequirementsUrl: UPSTREAM.modelRequirementsUrl
+        },
+        upstreamResolved: false,
+        unresolvedReason: error.message,
         error: error.message,
-        code: error.code || 'UNKNOWN'
-      }));
+        agents: [],
+        categories: [],
+        discouraged: []
+      };
+      console.log(JSON.stringify(fallbackOutput, null, 2));
     } else {
       console.error(`${colors.red}❌ Error: ${error.message}${colors.reset}`);
       
