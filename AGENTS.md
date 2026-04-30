@@ -17,6 +17,7 @@ OmO-Agent-Config/
 ├── lib/
 │   ├── server.js                    # HTTP server + API routes + static file serving
 │   ├── constants.js                 # Paths, DEFAULTS, AGENT_PROFILES, JSONC helpers
+│   ├── upstream-constants.js        # Single source of truth for upstream repo/branch/schema coordinates
 │   ├── config-manager.js            # Named profile CRUD + migrations
 │   ├── validation.js                # Config integrity checks + missing agent/MCP helpers
 │   ├── upstream.js                  # Fetch/cache upstream schema from GitHub
@@ -24,13 +25,19 @@ OmO-Agent-Config/
 │   ├── core/
 │   │   ├── models.js                # `opencode models --verbose` parsing + cache + ranking
 │   │   ├── agents.js                # Fetch/parse agent docs (GitHub) + cache
-│   │   └── backup.js                # Timestamped backups
+│   │   ├── backup.js                # Timestamped backups
+│   │   └── provider-diagnostics.js  # Provider visibility + config-split diagnostics (read-only)
 │   └── web/
 │       ├── index.html               # SPA shell
 │       ├── app.js                   # Frontend logic (filters, modals, profile mgmt)
 │       └── styles.css               # UI styling
+├── scripts/
+│   ├── drift-check.js               # Compare local vs upstream requirements
+│   ├── upstream-snapshot.js         # Full upstream snapshot with sourceRef
+│   ├── provider-aware-sync.js       # Provider-grouped sync preview (dry-run only)
+│   └── upstream-health-check.js     # Combined drift + schema health check
 ├── docs/                            # Design + UX + troubleshooting
-├── tests/                           # Playwright UI test(s)
+├── tests/                           # Playwright UI test(s) + unit tests
 ├── run-tests.sh                     # Manual API/UI smoke runner
 ├── install.sh                       # Copies bin/ + lib/ → ~/.config/opencode/ and symlinks
 ├── VERSION                          # Manual version tracking
@@ -45,6 +52,8 @@ OmO-Agent-Config/
 | Web UI backend | `lib/server.js` | Routes under `/api/*` + static `lib/web/*` |
 | Model discovery + provider list | `lib/core/models.js` | Runs `opencode models --verbose`, parses, caches, ranks |
 | Agent docs / new-agent discovery | `lib/core/agents.js` | Pulls upstream agent docs + caches locally |
+| Upstream coordinates (SSOT) | `lib/upstream-constants.js` | Repo, branch, schema path, API URLs |
+| Provider + config diagnostics | `lib/core/provider-diagnostics.js` | Provider visibility, config-split, stale schema detection |
 | Profile CRUD + envelopes | `lib/config-manager.js` | `{ name, description, created, modified, config }` |
 | Defaults + paths + JSONC parsing | `lib/constants.js` | Reads/writes `~/.config/opencode/oh-my-opencode.jsonc` |
 | Schema caching | `lib/upstream.js` | GitHub release tag → cached schema in `~/.config/opencode/cache/` |

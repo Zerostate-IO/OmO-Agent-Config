@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Upstream contract centralization**: All upstream repo/branch/schema coordinates now flow through `lib/upstream-constants.js` (single source of truth). Active runtime fetches no longer contain scattered owner/repo strings.
+- **Schema compatibility**: Schema validation now supports both legacy (`definitions` object) and current (draft-07 inline `properties`) upstream schema layouts. Three-layout detection handles format transitions gracefully.
+- **Model requirements sync**: `lib/core/model-requirements.js` synced to pinned upstream SHA `216283e2` from `dev` branch. Includes new providers (`vercel`, `opencode-go`, `moonshotai`, `firmware`, `aihubmix`) and updated fallback chains for all 11 agents and 9 categories.
+- **Fallback model objects**: `fallback_models` entries can now be rich objects (`{ model, variant, ... }`) alongside plain strings. The UI preserves object entries and displays formatted labels with variant/reasoning metadata instead of `[object Object]`.
+- **Upstream sync hardened**: Apply mode disabled in both `provider-aware-sync.js` script and `/api/upstream/sync` route until source-file backup/write-lock guard exists. Dry-run returns structured JSON with `sourceRef`, per-provider diffs, and change counts.
+- **Documentation updated**: Canonical upstream repo documented as `code-yeongyu/oh-my-openagent`. Config file (`oh-my-opencode.jsonc`), schema filename (`oh-my-opencode.schema.json`), and package identifiers remain unchanged for backward compatibility.
+
+### Added
+- **Config split diagnostics**: Read-only detection of sibling `oh-my-openagent.jsonc`, stale `$schema` URLs, and old plugin names. Surfaces as advisory warnings in provider diagnostics modal and `/api/config/diagnostics` endpoint. No automatic migration.
+- **Provider diagnostics integration**: Config-split warnings surface in the existing provider diagnostics flow with `[CODE]` prefixed hints.
+- **Pinned SHA tracking**: `.omo-upstream-sha` pins the exact upstream commit. `drift-check.js` and `upstream-snapshot.js` output `sourceRef` with repo, branch, commit SHA, and model requirements URL for traceability.
+- **Model parser header whitespace fix**: `parseModels()` now trims header lines before regex matching, preventing silent skip of indented model entries.
+- **UI formatting fixes**: Long model IDs wrap correctly (no horizontal overflow), fallback editor scrolls within bounds on 10+ entries, diagnostics banner works in dark theme, model selection uses `data-action` delegation instead of fragile inline `onclick` handlers.
+- **Playwright UI audit**: Desktop, tablet, and mobile viewport screenshots as visual regression evidence for releases.
+
+### Fixed
+- `checkAndUpdateOhMyOpenCodeSchema` missing `valid: true` in success return, causing false "schema check failed" in health reports
+- `getCurrentModelForAgent` undefined in agent detail modal
+- Duplicate delegated click handlers causing double-fire on model assignment
+- Model header lines not trimmed before regex matching, causing indented model entries to be silently skipped
+
 ## [0.10.0] - 2026-03-24
 
 ### Changed
