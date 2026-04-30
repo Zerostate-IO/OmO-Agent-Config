@@ -442,6 +442,130 @@ function run() {
     
     cleanupTempDir(tempDir);
     tempDir = null;
+
+    // ========================================
+    // Test 8: Object entry round-trip preservation
+    // ========================================
+
+    console.log('Test 8: Object fallback entries preserved through round-trip...');
+
+    tempDir = createTempDir('object-rt-');
+    const manager8 = new TestConfigManager(path.join(tempDir, 'configs'));
+
+    const configWithObjects = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-opus-4',
+          fallback_models: [
+            { model: 'openai/gpt-4', variant: 'high', reasoningEffort: 'extended' },
+            { model: 'google/gemini-pro', temperature: 0.7, top_p: 0.95 },
+            'anthropic/claude-sonnet'
+          ]
+        },
+        sisyphus: {
+          model: 'anthropic/claude-opus-4-7',
+          fallback_models: [
+            { model: 'google/gemini-3.1-pro', variant: 'max', thinking: true, maxTokens: 8192 }
+          ]
+        }
+      }
+    };
+
+    manager8.saveConfiguration('object-rt', 'Object round-trip', configWithObjects);
+    const loaded8 = manager8.loadConfiguration('object-rt');
+
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models.length, 3);
+
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[0].model, 'openai/gpt-4');
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[0].variant, 'high');
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[0].reasoningEffort, 'extended');
+
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[1].model, 'google/gemini-pro');
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[1].temperature, 0.7);
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[1].top_p, 0.95);
+
+    assert.strictEqual(loaded8.config.agents.oracle.fallback_models[2], 'anthropic/claude-sonnet');
+
+    assert.strictEqual(loaded8.config.agents.sisyphus.fallback_models[0].model, 'google/gemini-3.1-pro');
+    assert.strictEqual(loaded8.config.agents.sisyphus.fallback_models[0].variant, 'max');
+    assert.strictEqual(loaded8.config.agents.sisyphus.fallback_models[0].thinking, true);
+    assert.strictEqual(loaded8.config.agents.sisyphus.fallback_models[0].maxTokens, 8192);
+
+    console.log('Test 8: PASS');
+
+    cleanupTempDir(tempDir);
+    tempDir = null;
+
+    // ========================================
+    // Test 9: Unknown fields on object entries survive round-trip
+    // ========================================
+
+    console.log('Test 9: Unknown future fields on object entries...');
+
+    tempDir = createTempDir('unknown-fields-');
+    const manager9 = new TestConfigManager(path.join(tempDir, 'configs'));
+
+    const configWithUnknownFields = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-opus-4',
+          fallback_models: [
+            { model: 'openai/gpt-4', futureField: 'preserved', customMetadata: { nested: true } }
+          ]
+        }
+      }
+    };
+
+    manager9.saveConfiguration('unknown-fields', 'Unknown fields', configWithUnknownFields);
+    const loaded9 = manager9.loadConfiguration('unknown-fields');
+
+    assert.strictEqual(loaded9.config.agents.oracle.fallback_models[0].futureField, 'preserved');
+    assert.deepStrictEqual(loaded9.config.agents.oracle.fallback_models[0].customMetadata, { nested: true });
+
+    console.log('Test 9: PASS');
+
+    cleanupTempDir(tempDir);
+    tempDir = null;
+
+    // ========================================
+    // Test 10: Mixed string/object round-trip with multiple save/load
+    // ========================================
+
+    console.log('Test 10: Mixed entries survive multiple save/load cycles...');
+
+    tempDir = createTempDir('mixed-rt-');
+    const manager10 = new TestConfigManager(path.join(tempDir, 'configs'));
+
+    const mixedConfig = {
+      agents: {
+        oracle: {
+          model: 'anthropic/claude-opus-4',
+          fallback_models: [
+            'google/gemini-pro',
+            { model: 'openai/gpt-4', variant: 'high' },
+            { model: 'anthropic/claude-sonnet', temperature: 0.5, unknownField: 'test' }
+          ]
+        }
+      }
+    };
+
+    manager10.saveConfiguration('mixed-rt', 'Mixed round-trip', mixedConfig);
+
+    for (let i = 0; i < 3; i++) {
+      const loaded = manager10.loadConfiguration('mixed-rt');
+      assert.strictEqual(loaded.config.agents.oracle.fallback_models.length, 3);
+      assert.strictEqual(loaded.config.agents.oracle.fallback_models[0], 'google/gemini-pro');
+      assert.strictEqual(loaded.config.agents.oracle.fallback_models[1].model, 'openai/gpt-4');
+      assert.strictEqual(loaded.config.agents.oracle.fallback_models[1].variant, 'high');
+      assert.strictEqual(loaded.config.agents.oracle.fallback_models[2].temperature, 0.5);
+      assert.strictEqual(loaded.config.agents.oracle.fallback_models[2].unknownField, 'test');
+      manager10.saveConfiguration('mixed-rt', 'Mixed round-trip', loaded.config);
+    }
+
+    console.log('Test 10: PASS');
+
+    cleanupTempDir(tempDir);
+    tempDir = null;
     
     // ========================================
     // All tests passed
@@ -511,7 +635,7 @@ async function runApiPersistenceTests() {
   console.log('\nTest 8: API-level persistence through /api/config...');
   
   const originalConfigResponse = await makeApiRequest('/api/config');
-  const originalConfig = originalConfigResponse.body;
+  const originalConfig = originalConfigResponse.body.config;
   
   try {
     const testConfig = {
@@ -536,17 +660,17 @@ async function runApiPersistenceTests() {
     assert.strictEqual(getConfigResponse.status, 200, 'GET /api/config should return 200');
     
     assert.ok(
-      Array.isArray(getConfigResponse.body.agents.oracle.fallback_models),
+      Array.isArray(getConfigResponse.body.config.agents.oracle.fallback_models),
       'fallback_models should be an array'
     );
     assert.deepStrictEqual(
-      getConfigResponse.body.agents.oracle.fallback_models,
+      getConfigResponse.body.config.agents.oracle.fallback_models,
       ['openai/gpt-4', 'google/gemini-pro', 'anthropic/claude-sonnet'],
       'Valid fallback_models should be persisted correctly'
     );
     
     assert.deepStrictEqual(
-      getConfigResponse.body.agents.sisyphus.fallback_models,
+      getConfigResponse.body.config.agents.sisyphus.fallback_models,
       ['anthropic/claude-opus-4-6'],
       'Sisyphus fallback_models should be persisted correctly'
     );
@@ -568,7 +692,7 @@ async function runApiPersistenceTests() {
     
     const verifyMalformed = await makeApiRequest('/api/config');
     assert.deepStrictEqual(
-      verifyMalformed.body.agents.oracle.fallback_models,
+      verifyMalformed.body.config.agents.oracle.fallback_models,
       ['valid/model', 'invalid', null, 123, '', 'another/valid'],
       'Malformed values stored as-is (sanitization at read time)'
     );
@@ -589,7 +713,7 @@ async function runApiPersistenceTests() {
     
     const verifyEmpty = await makeApiRequest('/api/config');
     assert.deepStrictEqual(
-      verifyEmpty.body.agents.oracle.fallback_models,
+      verifyEmpty.body.config.agents.oracle.fallback_models,
       [],
       'Empty fallback_models array should be persisted'
     );
@@ -643,27 +767,27 @@ async function runApiPersistenceTests() {
     const verifyComplex = await makeApiRequest('/api/config');
     
     assert.strictEqual(
-      verifyComplex.body.agents.oracle.temperature,
+      verifyComplex.body.config.agents.oracle.temperature,
       0.7,
       'Agent temperature should be preserved'
     );
     assert.strictEqual(
-      verifyComplex.body.agents.oracle.max_tokens,
+      verifyComplex.body.config.agents.oracle.max_tokens,
       4096,
       'Agent max_tokens should be preserved'
     );
     assert.strictEqual(
-      verifyComplex.body.agents.oracle.customField,
+      verifyComplex.body.config.agents.oracle.customField,
       'preserved',
       'Custom agent field should be preserved'
     );
     assert.strictEqual(
-      verifyComplex.body.customTopLevel,
+      verifyComplex.body.config.customTopLevel,
       'also-preserved',
       'Custom top-level field should be preserved'
     );
     assert.deepStrictEqual(
-      verifyComplex.body.nestedCustom,
+      verifyComplex.body.config.nestedCustom,
       { deep: { value: 'preserved-too' } },
       'Nested custom field should be preserved'
     );
@@ -696,31 +820,31 @@ async function runApiPersistenceTests() {
     const verifyMcps = await makeApiRequest('/api/config');
     
     assert.ok(
-      verifyMcps.body.mcps,
+      verifyMcps.body.config.mcps,
       'mcps section should exist'
     );
     assert.strictEqual(
-      verifyMcps.body.mcps.websearch_exa.url,
+      verifyMcps.body.config.mcps.websearch_exa.url,
       'https://api.exa.ai/search',
       'websearch_exa URL should be preserved'
     );
     assert.strictEqual(
-      verifyMcps.body.mcps.websearch_exa.enabled,
+      verifyMcps.body.config.mcps.websearch_exa.enabled,
       true,
       'websearch_exa enabled should be preserved'
     );
     assert.strictEqual(
-      verifyMcps.body.mcps.custom_tool.custom_setting,
+      verifyMcps.body.config.mcps.custom_tool.custom_setting,
       'preserved',
       'custom MCP setting should be preserved'
     );
     assert.strictEqual(
-      verifyMcps.body.top_level_custom,
+      verifyMcps.body.config.top_level_custom,
       'should-be-preserved',
       'Top-level custom field should be preserved'
     );
     assert.deepStrictEqual(
-      verifyMcps.body.agents.oracle.fallback_models,
+      verifyMcps.body.config.agents.oracle.fallback_models,
       ['openai/gpt-4'],
       'fallback_models should coexist with mcps'
     );
@@ -757,27 +881,27 @@ async function runApiPersistenceTests() {
     const verifyMulti = await makeApiRequest('/api/config');
     
     assert.deepStrictEqual(
-      verifyMulti.body.agents.oracle.fallback_models,
+      verifyMulti.body.config.agents.oracle.fallback_models,
       ['openai/gpt-4', 'google/gemini-pro'],
       'Oracle fallback_models should be persisted'
     );
     assert.deepStrictEqual(
-      verifyMulti.body.agents.sisyphus.fallback_models,
+      verifyMulti.body.config.agents.sisyphus.fallback_models,
       ['openai/gpt-5.4'],
       'Sisyphus fallback_models should be persisted'
     );
     assert.deepStrictEqual(
-      verifyMulti.body.agents.librarian.fallback_models,
+      verifyMulti.body.config.agents.librarian.fallback_models,
       ['anthropic/claude-sonnet-4-6', 'openai/gpt-4o'],
       'Librarian fallback_models should be persisted'
     );
     assert.deepStrictEqual(
-      verifyMulti.body.agents.hephaestus.fallback_models,
+      verifyMulti.body.config.agents.hephaestus.fallback_models,
       [],
       'Hephaestus empty fallback_models should be persisted'
     );
     assert.strictEqual(
-      verifyMulti.body.agents.metis.hasOwnProperty('fallback_models'),
+      verifyMulti.body.config.agents.metis.hasOwnProperty('fallback_models'),
       false,
       'Metis should not have fallback_models key'
     );
@@ -818,7 +942,7 @@ async function runApiPersistenceTests() {
     const persistedConfig = await makeApiRequest('/api/config');
     
     assert.ok(
-      Array.isArray(persistedConfig.body.agents.oracle.fallback_models),
+      Array.isArray(persistedConfig.body.config.agents.oracle.fallback_models),
       'Persisted fallback_models should be an array'
     );
     
@@ -839,7 +963,7 @@ async function runApiPersistenceTests() {
     const verifyOrder = await makeApiRequest('/api/config');
     
     assert.deepStrictEqual(
-      verifyOrder.body.agents.oracle.fallback_models,
+      verifyOrder.body.config.agents.oracle.fallback_models,
       ['z-provider/last', 'a-provider/first', 'm-provider/middle'],
       'Fallback order should be preserved exactly as provided'
     );
