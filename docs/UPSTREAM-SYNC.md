@@ -17,7 +17,22 @@ Upstream sync is the process of comparing your local `lib/core/model-requirement
 
 Oh My Opencode evolves rapidly. New agents are added, model recommendations change, and fallback chains are updated. Running drift checks ensures your local configuration stays compatible and takes advantage of improvements.
 
-> **Note:** The upstream repository has been renamed to `code-yeongyu/oh-my-openagent`, but the config file (`oh-my-opencode.jsonc`) and schema identifiers remain unchanged for backward compatibility.
+> **Note:** The upstream repository has been renamed to `code-yeongyu/oh-my-openagent`, but the config file (`oh-my-opencode.jsonc`) and schema identifiers remain unchanged for backward compatibility. All runtime coordinates (repo, branch, schema path) are centralized in `lib/upstream-constants.js`.
+
+### Upstream Coordinates
+
+All upstream references flow through a single source of truth:
+
+| Constant | Value | Notes |
+|----------|-------|-------|
+| Repo | `code-yeongyu/oh-my-openagent` | Renamed from `oh-my-opencode` |
+| Branch | `dev` | Default development branch |
+| Schema | `oh-my-opencode.schema.json` | Filename unchanged for backcompat |
+| Config file | `oh-my-opencode.jsonc` | Filename unchanged for backcompat |
+| Model requirements | `src/shared/model-requirements.ts` | Fetched from branch |
+| Pinned SHA | `.omo-upstream-sha` | Tracks exact upstream commit |
+
+The `sourceRef` object (returned by `drift-check.js --json` and `upstream-snapshot.js`) includes `repo`, `branch`, `commitSha`, and `modelRequirementsUrl` for full traceability.
 
 ---
 
@@ -543,11 +558,69 @@ node scripts/upstream-snapshot.js --no-cache
 
 ---
 
+## Provider-Aware Sync (Dry-Run Only)
+
+The `provider-aware-sync.js` script performs a structured dry-run comparison grouped by provider. It shows which agents and categories would change, which providers are affected, and produces machine-readable JSON output.
+
+### Dry-Run (Default and Only Mode)
+
+```bash
+node scripts/provider-aware-sync.js --json
+```
+
+**Output structure:**
+```json
+{
+  "success": true,
+  "dryRun": true,
+  "sourceRef": {
+    "repo": "code-yeongyu/oh-my-openagent",
+    "branch": "dev",
+    "commitSha": "216283e2...",
+    "pinnedSha": "216283e2...",
+    "modelRequirementsUrl": "https://raw.githubusercontent.com/..."
+  },
+  "providers": ["openai", "anthropic", "google", "vercel", "opencode-go"],
+  "changedAgents": [],
+  "changedCategories": [],
+  "unchangedCount": 11,
+  "warnings": [],
+  "summary": "Dry run: 0 agents changed, 0 categories changed"
+}
+```
+
+### Apply Mode Disabled
+
+Apply mode (`--apply` or `POST /api/upstream/sync` with `dryRun: false`) is intentionally disabled. The script and API route both reject apply requests:
+
+- **Script**: `--apply` outputs `{ success: false, dryRun: true, message: "Apply mode is disabled..." }` without writing any files
+- **API route**: `POST /api/upstream/sync` with `dryRun: false` returns HTTP 501 Not Implemented
+
+Apply will remain disabled until a source-file backup and write-lock guard exists. No automatic migration or file writing occurs in the sync workflow. The safe workflow is:
+
+1. Run dry-run to see what would change
+2. Review the structured JSON output
+3. Manually update `lib/core/model-requirements.js` based on the diff
+4. Run `node scripts/drift-check.js --refresh --exit-on-drift` to verify
+
+### API Endpoint
+
+```
+POST /api/upstream/sync
+Content-Type: application/json
+
+{ "dryRun": true }   # Returns structured sync preview
+{ "dryRun": false }  # Returns 501 Not Implemented
+```
+
+---
+
 ## Summary Table
 
 | Script | Purpose | Key Flags |
 |--------|---------|-----------|
 | `drift-check.js` | Compare local vs upstream requirements | `--json`, `--refresh`, `--pin`, `--exit-on-drift` |
+| `provider-aware-sync.js` | Provider-grouped sync preview (dry-run only) | `--json`, `--providers` |
 | `omo-doc-scan.js` | Scan docs for discouraged model signals | `--json`, `--verbose` |
 | `upstream-snapshot.js` | Generate full upstream snapshot | `--json`, `--output <file>`, `--no-cache` |
 
@@ -555,6 +628,7 @@ node scripts/upstream-snapshot.js --no-cache
 
 ## Related Files
 
+- `lib/upstream-constants.js` - Single source of truth for upstream repo, branch, and schema coordinates
 - `lib/core/model-requirements.js` - Local model requirements (the file being checked)
 - `.omo-upstream-sha` - Pinned upstream commit SHA
 - `~/.config/opencode/cache/upstream-snapshot.json` - Cached upstream data

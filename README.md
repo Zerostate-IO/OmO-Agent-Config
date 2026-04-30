@@ -24,25 +24,26 @@ OmO Agent Config is a local web UI (served by a zero-dependency Node.js HTTP ser
 - **Fallback Customization** - Customize per-agent `fallback_models` lists to prioritize which models to use when your primary model is unavailable
 - **Strict Upstream Checks** - Verify upstream compatibility with strict mode checks
 - **Health Check Commands** - Monitor upstream schema and capability changes with `upstream-health-check.js`
+- **Provider-Aware Sync** - Dry-run upstream sync with per-provider change preview (see `docs/UPSTREAM-SYNC.md`)
 
 ### Fallback Model Configuration
 
-Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fallback_models` key, which accepts an ordered array of model IDs in `provider/model` format:
+Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fallback_models` key. Each entry can be a simple string (`"provider/model"`) or a rich object with metadata:
 
 ```json
 {
   "agents": {
     "oracle": {
-      "model": "openai/gpt-5.4",
+      "model": "openai/gpt-5.5",
       "fallback_models": [
         "anthropic/claude-sonnet-4-6",
-        "google/gemini-3.1-pro"
+        { "model": "google/gemini-3.1-pro", "variant": "high" }
       ]
     },
     "sisyphus": {
-      "model": "anthropic/claude-opus-4-6",
+      "model": "anthropic/claude-opus-4-7",
       "fallback_models": [
-        "google/gemini-3.1-pro",
+        { "model": "google/gemini-3.1-pro", "variant": "high" },
         "anthropic/claude-sonnet-4-6"
       ]
     }
@@ -50,20 +51,7 @@ Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fa
 }
 ```
 
-**Example:**
-```json
-{
-  "agents": {
-    "explore": {
-      "model": "github-copilot/grok-code-fast-1",
-      "fallback_models": [
-        "openai/gpt-5.4",
-        "anthropic/claude-sonnet-4-6"
-      ]
-    }
-  }
-}
-```
+The UI preserves both string and object entries. Object entries display with variant and reasoning metadata when present. Unknown fields on object entries are preserved through save/load cycles.
 
 ### Difference Between Configured and upstream fallbacks
 
@@ -81,8 +69,21 @@ Fallback models are configured per-agent in `oh-my-opencode.jsonc` using the `fa
   - Displayed in UI for reference only
 
 **Important:** The tool preserves both fields separately in the API responses:
-- `configuredFallbackModels` - User's configured list
+- `configuredFallbackModels` - User's configured list (string IDs only)
+- `configuredFallbacksRaw` - User's configured list with rich object entries preserved
 - `fallbackChain` - Upstream recommendation chain
+
+### Config Diagnostics
+
+The UI runs read-only diagnostics to detect common configuration issues:
+
+- **Sibling config file**: If `oh-my-openagent.jsonc` exists alongside `oh-my-opencode.jsonc`, a warning is shown (no automatic migration)
+- **Stale `$schema` URL**: If the schema URL references the old repo (`code-yeongyu/oh-my-opencode/master`), a warning suggests updating to the canonical URL
+- **Old plugin name**: If `opencode.json` references `oh-my-opencode` as a plugin name instead of `oh-my-openagent`, a hint appears
+
+All diagnostics are advisory only. The tool never renames, moves, or migrates config files automatically.
+
+The primary config file remains `~/.config/opencode/oh-my-opencode.jsonc`. The `oh-my-openagent.jsonc` filename is advisory/diagnostic only and is not used by the tool.
 
 ## Prerequisites
 
@@ -242,34 +243,34 @@ The tool includes these defaults for easy restoration:
 {
   "agents": {
     "oracle": {
-      "model": "openai/gpt-5.4"
+      "model": "openai/gpt-5.5"
     },
     "sisyphus": {
-      "model": "anthropic/claude-opus-4-6"
+      "model": "anthropic/claude-opus-4-7"
     },
     "atlas": {
       "model": "anthropic/claude-sonnet-4-6"
     },
-    "explore": {
-      "model": "github-copilot/grok-code-fast-1"
-    },
     "librarian": {
-      "model": "opencode-go/minimax-m2.5"
+      "model": "openai/gpt-5.4-mini-fast"
+    },
+    "explore": {
+      "model": "openai/gpt-5.4-mini-fast"
     },
     "multimodal-looker": {
-      "model": "openai/gpt-5.4"
+      "model": "openai/gpt-5.5"
     },
     "prometheus": {
-      "model": "anthropic/claude-opus-4-6"
+      "model": "anthropic/claude-opus-4-7"
     },
     "metis": {
-      "model": "anthropic/claude-opus-4-6"
+      "model": "anthropic/claude-opus-4-7"
     },
     "momus": {
-      "model": "openai/gpt-5.4"
+      "model": "openai/gpt-5.5"
     },
     "hephaestus": {
-      "model": "openai/gpt-5.3-codex"
+      "model": "openai/gpt-5.5"
     },
     "sisyphus-junior": {
       "model": "anthropic/claude-sonnet-4-6"
@@ -323,6 +324,7 @@ Release policy for merged changes:
 - Bug fixes and feature additions must be followed by a release version bump and tag.
 - Update `VERSION` + `CHANGELOG.md`, then push the release tag and publish a GitHub Release.
 - See `RELEASES.md` for the full checklist and semver rules.
+- UI formatting verification: Playwright audit screenshots (desktop, tablet, mobile viewports) are saved under `.sisyphus/evidence/` during release preparation and serve as visual regression evidence.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
