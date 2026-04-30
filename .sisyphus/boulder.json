@@ -1,8 +1,147 @@
 {
-  "active_plan": "/Users/legend/projects/OmO-Agent-Config/.sisyphus/plans/upstream-alignment-fallback-priority.md",
-  "started_at": "2026-03-05T20:02:03.536Z",
-  "session_ids": ["ses_3408d680fffeFBQZYK57kAwg3B"],
-  "plan_name": "upstream-alignment-fallback-priority",
+  "active_plan": "/Users/legend/projects/OmO-Agent-Config/.sisyphus/plans/upstream-openagent-opencode-ui-refresh.md",
+  "started_at": "2026-04-30T01:39:12.267Z",
+  "session_ids": [
+    "ses_224067a1bffeImS3BY0Ly9dvx4"
+  ],
+  "session_origins": {
+    "ses_224067a1bffeImS3BY0Ly9dvx4": "direct"
+  },
+  "plan_name": "upstream-openagent-opencode-ui-refresh",
   "agent": "atlas",
-  "worktree_path": "/Users/legend/projects/OmO-Agent-Config"
+  "current_task": "final-wave",
+  "current_phase": "complete",
+  "updated_at": "2026-04-30T06:55:00Z",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Baseline Evidence and Dirty Worktree Protection",
+      "session_id": "ses_223f386b9ffeXtJZUfDmD6Az9D",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-30T01:57:06.252Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Pin Upstream Contract and Repair Drift Target Reporting",
+      "session_id": "ses_223e339f0ffeLEtxfl00V2a3iZ",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-30T02:26:25.519Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Add Legacy + Current Upstream Schema Compatibility",
+      "session_id": "ses_223c643e8ffeVCFlOYiJzdeswi",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-30T02:40:50.851Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Sync Model Requirements, Defaults, and Provider Data to Pinned Upstream",
+      "session_id": "ses_223bb737cffeAOYJyuACDMQHO2",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-30T03:00:07.906Z"
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Preserve and Display Rich `fallback_models` Entries",
+      "session_id": "ses_223a94cfdffetAz6sspd7cPEGD",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-04-30T04:12:02.765Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Add Config Split and Stale Schema URL Diagnostics",
+      "session_id": "ses_223617181ffele6KNhcEc8yTjD",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-30T04:34:28Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "Harden Upstream Sync Endpoint and Track `provider-aware-sync.js`",
+      "session_id": "ses_22354a9efffeuUA4QlGj3yla8i",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-30T04:55:15.036Z"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "Fix UI Formatting and Layout Failures Found by Audit",
+      "session_id": "ses_2233d7d1effeiD1idHm2xR43OV",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-30T05:28:36.497Z"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "Update Docs for Upstream Rename, Sync, Config Diagnostics, and UI QA",
+      "session_id": "ses_2231d2a11ffeoVZAt8WSyfsPXd",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-30T05:52:05.393Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "Full Integration QA and Evidence Bundle",
+      "session_id": "ses_2230cfc80ffeoNnNs7brvcpfjq",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-04-30T06:35:00Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_222ea21e6ffev5X6csuj9j115g",
+      "agent": "oracle",
+      "category": "oracle",
+      "verdict": "APPROVE",
+      "updated_at": "2026-04-30T06:48:00Z"
+    },
+    "final-wave:f2": {
+      "task_key": "final-wave:f2",
+      "task_label": "F2",
+      "task_title": "Code Quality Review — unspecified-high",
+      "session_id": "ses_222ea1e28ffe5sY2Puv4aGiUkq",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "verdict": "APPROVE",
+      "updated_at": "2026-04-30T06:48:00Z"
+    },
+    "final-wave:f3": {
+      "task_key": "final-wave:f3",
+      "task_label": "F3",
+      "task_title": "Real Manual QA — unspecified-high (+ playwright)",
+      "session_id": "ses_222ea1e26ffeb54ESWfJJGljQn",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "verdict": "APPROVE",
+      "updated_at": "2026-04-30T06:48:00Z"
+    },
+    "final-wave:f4": {
+      "task_key": "final-wave:f4",
+      "task_label": "F4",
+      "task_title": "Scope Fidelity Check — deep",
+      "session_id": "ses_222ea1e25ffeboZRdW5n2NPB6w",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "verdict": "APPROVE",
+      "updated_at": "2026-04-30T06:48:00Z"
+    }
+  }
 }
