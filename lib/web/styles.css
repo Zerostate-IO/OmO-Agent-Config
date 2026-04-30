@@ -29,6 +29,11 @@
     box-sizing: border-box;
 }
 
+/* Prevent horizontal overflow from long model IDs */
+html, body {
+    overflow-x: hidden;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background-color: var(--color-bg);
@@ -358,6 +363,9 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow);
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .modal-header {
@@ -835,18 +843,49 @@ body {
     .app-header {
         flex-direction: column;
         gap: var(--spacing-md);
+        overflow: hidden;
     }
-    
+
+    .logo {
+        min-width: 0;
+    }
+
+    .profile-selector {
+        flex-wrap: wrap;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .profile-selector select {
+        min-width: 0;
+        flex: 1 1 120px;
+        max-width: 100%;
+    }
+
+    .profile-selector .btn {
+        flex: 0 0 auto;
+    }
+
+    .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    body {
+        overflow-x: hidden;
+    }
+
     .filters-bar {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .search-input {
         min-width: auto;
     }
-    
-
 
     .agent-list {
         grid-template-columns: 1fr;
@@ -1522,12 +1561,15 @@ body {
 
 /* Provider Diagnostics Banner */
 .diagnostics-banner {
-    background: #fff3cd;
-    border-bottom: 1px solid #ffc107;
+    background: linear-gradient(135deg, rgba(253, 203, 110, 0.15) 0%, rgba(253, 203, 110, 0.05) 100%);
+    border-bottom: 1px solid rgba(253, 203, 110, 0.3);
     padding: 10px 16px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow-wrap: anywhere;
 }
 .diagnostics-banner.hidden {
     display: none;
@@ -1547,4 +1589,192 @@ body {
 }
 .view-details-btn {
     flex-shrink: 0;
+}
+
+/* Long model ID safety - prevents horizontal overflow */
+code,
+.fallback-item-id,
+.model-select-name,
+.model-select-meta,
+.agent-config-model-name,
+.agent-config-model-meta,
+.mismatch-provider,
+.provider-name,
+.agent-select-current,
+.agent-select-name,
+.comparison-provider,
+.comparison-stat,
+.diagnostics-banner-text,
+.sync-results pre,
+.preview-output pre,
+.upstream-sync-container {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+}
+
+/* Fallback editor scroll containment */
+.fallback-editor-list {
+    max-height: 40vh;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+.fallback-editor-add {
+    flex-wrap: wrap;
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+}
+
+.fallback-editor-add .fallback-input {
+    min-width: 0;
+    flex: 1 1 200px;
+}
+
+.fallback-editor-add .fallback-validation-error {
+    flex-basis: 100%;
+}
+
+.fallback-item {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.fallback-item-info {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.fallback-item-controls {
+    flex-shrink: 0;
+}
+
+/* Dense modal responsive sizing */
+.diagnostics-modal-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Responsive grid collapse for small viewports */
+@media (max-width: 768px) {
+    .agents-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-content {
+        max-width: 100%;
+        width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .agent-tools {
+        grid-template-columns: 1fr;
+    }
+
+    .diagnostics-banner-content {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .model-selector-controls {
+        flex-direction: column;
+    }
+
+    .model-selector-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+    }
+
+    .fallback-editor-add {
+        flex-direction: column;
+    }
+
+    .fallback-editor-add .fallback-input {
+        flex-basis: auto;
+        width: 100%;
+    }
+
+    .fallback-editor-actions {
+        flex-wrap: wrap;
+    }
+
+    .agent-config-pending-diff {
+        max-width: 140px;
+    }
+}
+
+/* Ensure agent cards don't overflow */
+.agent-config-card {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.agent-config-model {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.agent-config-model-info {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Model selector buttons need overflow containment */
+.model-select-btn {
+    min-width: 0;
+    overflow: hidden;
+    text-align: left;
+}
+
+.model-select-name,
+.model-select-meta,
+.model-select-used {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Comparison list overflow safety */
+.comparison-item {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.comparison-header {
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+/* Upstream sync output safety */
+.upstream-sync-container {
+    min-width: 0;
+}
+
+.sync-results {
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.preview-output pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    font-size: 0.8rem;
+}
+
+/* Agent detail fallback list code safety */
+.fallback-list li code {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+/* Agent config card fallback indicator */
+.agent-config-fallback-indicator {
+    overflow-wrap: anywhere;
+    min-width: 0;
 }
