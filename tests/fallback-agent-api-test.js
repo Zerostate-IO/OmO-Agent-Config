@@ -88,13 +88,42 @@ async function run() {
     }
   });
   
-  test('configuredFallbackModels contains valid provider/model format', () => {
+  test('each agent has configuredFallbacksRaw array', () => {
+    for (const agent of agentsResponse.body.agents) {
+      assert.ok(
+        Array.isArray(agent.configuredFallbacksRaw),
+        `Agent ${agent.name} should have configuredFallbacksRaw array`
+      );
+    }
+  });
+
+  test('configuredFallbackModels is always string array', () => {
     for (const agent of agentsResponse.body.agents) {
       for (const model of agent.configuredFallbackModels) {
-        assert.ok(
-          typeof model === 'string' && model.includes('/'),
-          `Model ${model} should be in provider/model format`
-        );
+        assert.strictEqual(typeof model, 'string', `configuredFallbackModels entry should be string, got ${typeof model}`);
+      }
+    }
+  });
+
+  test('configuredFallbacksRaw entries are strings or objects with model property', () => {
+    for (const agent of agentsResponse.body.agents) {
+      for (const entry of agent.configuredFallbacksRaw) {
+        if (typeof entry === 'string') {
+          assert.ok(entry.includes('/'), `String entry "${entry}" should be provider/model format`);
+        } else if (typeof entry === 'object') {
+          assert.ok(entry.model, `Object entry should have model property`);
+          assert.strictEqual(typeof entry.model, 'string', `Object entry model should be string`);
+        } else {
+          assert.fail(`Entry should be string or object, got ${typeof entry}`);
+        }
+      }
+    }
+  });
+
+  test('no [object Object] in configuredFallbackModels', () => {
+    for (const agent of agentsResponse.body.agents) {
+      for (const model of agent.configuredFallbackModels) {
+        assert.ok(!model.includes('[object Object]'), `configuredFallbackModels should not contain [object Object]: ${model}`);
       }
     }
   });
