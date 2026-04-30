@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Requirements and Normalization Test Suite
- * 
+ *
  * Deterministic tests for:
  * - GitHub Copilot model-id transforms
  * - Fallback chain resolution ordering
@@ -48,20 +48,24 @@ function test(name, fn) {
 
 // Mock fixtures
 const mockModels = [
+  { id: 'anthropic/claude-opus-4-7', name: 'Claude Opus 4.7', providerID: 'anthropic' },
   { id: 'anthropic/claude-opus-4-6', name: 'Claude Opus 4.6', providerID: 'anthropic' },
   { id: 'anthropic/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', providerID: 'anthropic' },
   { id: 'anthropic/claude-haiku-4-5', name: 'Claude Haiku 4.5', providerID: 'anthropic' },
+  { id: 'github-copilot/claude-opus-4.7', name: 'Claude Opus 4.7 (Copilot)', providerID: 'github-copilot' },
   { id: 'github-copilot/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', providerID: 'github-copilot' },
   { id: 'openai/gpt-5.3-codex', name: 'GPT-5.3 Codex', providerID: 'openai' },
   { id: 'openai/gpt-5.4', name: 'GPT-5.4', providerID: 'openai' },
+  { id: 'openai/gpt-5.5', name: 'GPT-5.5', providerID: 'openai' },
   { id: 'google/gemini-3.1-pro', name: 'Gemini 3.1 Pro', providerID: 'google' },
   { id: 'google/gemini-3-flash', name: 'Gemini 3 Flash', providerID: 'google' },
   { id: 'kimi-for-coding/k2p5', name: 'Kimi K2.5 Pro', providerID: 'kimi-for-coding' },
   { id: 'opencode-go/kimi-k2.5', name: 'Kimi K2.5', providerID: 'opencode-go' },
   { id: 'opencode-go/glm-5', name: 'GLM 5', providerID: 'opencode-go' },
-  { id: 'opencode-go/minimax-m2.5', name: 'Minimax M2.5', providerID: 'opencode-go' },
+  { id: 'opencode-go/minimax-m2.7', name: 'Minimax M2.7', providerID: 'opencode-go' },
   { id: 'opencode/big-pickle', name: 'Big Pickle', providerID: 'opencode' },
-  { id: 'opencode/gpt-5-nano', name: 'GPT-5 Nano', providerID: 'opencode' }
+  { id: 'opencode/gpt-5-nano', name: 'GPT-5 Nano', providerID: 'opencode' },
+  { id: 'vercel/gpt-5.5', name: 'GPT-5.5 (Vercel)', providerID: 'vercel' }
 ];
 
 // Build availability maps for different scenarios
@@ -72,7 +76,8 @@ const fullAvailability = {
   'github-copilot': true,
   'kimi-for-coding': true,
   'opencode': true,
-  'opencode-go': true
+  'opencode-go': true,
+  'vercel': true
 };
 
 const limitedAvailability = {
@@ -97,8 +102,14 @@ console.log('');
 // ==========================================
 test('GitHub Copilot transform: claude-opus-4-6 → claude-opus-4.6', () => {
   const result = transformModelForProvider('github-copilot', 'claude-opus-4-6');
-  assert.strictEqual(result, 'claude-opus-4.6', 
+  assert.strictEqual(result, 'claude-opus-4.6',
     `Expected claude-opus-4.6, got ${result}`);
+});
+
+test('GitHub Copilot transform: claude-opus-4-7 → claude-opus-4.7', () => {
+  const result = transformModelForProvider('github-copilot', 'claude-opus-4-7');
+  assert.strictEqual(result, 'claude-opus-4.7',
+    `Expected claude-opus-4.7, got ${result}`);
 });
 
 test('GitHub Copilot transform: claude-sonnet-4-6 → claude-sonnet-4.6', () => {
@@ -143,10 +154,10 @@ test('Non-GitHub provider: no transform applied', () => {
 test('Sisyphus fallback chain: picks first available (anthropic)', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const result = resolveModelFromChain(sisyphusReqs.fallbackChain, fullAvailability);
-  
+
   assert.ok(result, 'Expected a result');
-  assert.strictEqual(result.model, 'anthropic/claude-opus-4-6',
-    `Expected anthropic/claude-opus-4-6, got ${result.model}`);
+  assert.strictEqual(result.model, 'anthropic/claude-opus-4-7',
+    `Expected anthropic/claude-opus-4-7, got ${result.model}`);
   assert.strictEqual(result.variant, 'max',
     `Expected variant 'max', got ${result.variant}`);
 });
@@ -154,35 +165,35 @@ test('Sisyphus fallback chain: picks first available (anthropic)', () => {
 test('Sisyphus fallback chain: uses github-copilot when anthropic unavailable', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const noAnthropic = { ...fullAvailability, 'anthropic': false };
-  
+
   const result = resolveModelFromChain(sisyphusReqs.fallbackChain, noAnthropic);
-  
+
   assert.ok(result, 'Expected a result');
-  // First entry has providers: ["anthropic", "github-copilot", "opencode"]
+  // First entry has providers: ["anthropic", "github-copilot", "opencode", "vercel"]
   // When anthropic is unavailable, github-copilot is next in the first entry
-  assert.strictEqual(result.model, 'github-copilot/claude-opus-4.6',
-    `Expected github-copilot/claude-opus-4.6, got ${result.model}`);
+  assert.strictEqual(result.model, 'github-copilot/claude-opus-4.7',
+    `Expected github-copilot/claude-opus-4.7, got ${result.model}`);
 });
 
 test('Sisyphus fallback chain: uses opencode from first entry when others unavailable', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const onlyOpenCode = { 'opencode': true };
-  
+
   const result = resolveModelFromChain(sisyphusReqs.fallbackChain, onlyOpenCode);
-  
+
   assert.ok(result, 'Expected a result');
-  // First entry has providers: ["anthropic", "github-copilot", "opencode"]
+  // First entry has providers: ["anthropic", "github-copilot", "opencode", "vercel"]
   // When only opencode is available, it uses the first entry's model
-  assert.strictEqual(result.model, 'opencode/claude-opus-4-6',
-    `Expected opencode/claude-opus-4-6, got ${result.model}`);
+  assert.strictEqual(result.model, 'opencode/claude-opus-4-7',
+    `Expected opencode/claude-opus-4-7, got ${result.model}`);
 });
 
 test('Sisyphus fallback chain: returns null when nothing available', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const emptyAvailability = {};
-  
+
   const result = resolveModelFromChain(sisyphusReqs.fallbackChain, emptyAvailability);
-  
+
   assert.strictEqual(result, null, 'Expected null when no providers available');
 });
 
@@ -192,25 +203,43 @@ test('Sisyphus fallback chain: returns null when nothing available', () => {
 test('Hephaestus gating: passes when openai available', () => {
   const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
   const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, fullAvailability);
-  
+
   assert.strictEqual(result, true, 'Expected gating to pass with openai available');
 });
 
 test('Hephaestus gating: passes when github-copilot available (upstream expanded)', () => {
   const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
   const onlyCopilot = { 'github-copilot': true };
-  
+
   const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyCopilot);
-  
+
   assert.strictEqual(result, true, 'Expected gating to pass with github-copilot (upstream added it to requiresProvider)');
+});
+
+test('Hephaestus gating: passes when vercel available', () => {
+  const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
+  const onlyVercel = { 'vercel': true };
+
+  const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyVercel);
+
+  assert.strictEqual(result, true, 'Expected gating to pass with vercel (upstream added it to requiresProvider)');
+});
+
+test('Hephaestus gating: passes when venice available', () => {
+  const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
+  const onlyVenice = { 'venice': true };
+
+  const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyVenice);
+
+  assert.strictEqual(result, true, 'Expected gating to pass with venice (upstream added it to requiresProvider)');
 });
 
 test('Hephaestus gating: fails when no required providers available', () => {
   const hephaestusReqs = AGENT_MODEL_REQUIREMENTS.hephaestus;
   const onlyAnthropic = { 'anthropic': true, 'google': true };
-  
+
   const result = isRequiredProviderAvailable(hephaestusReqs.requiresProvider, onlyAnthropic);
-  
+
   assert.strictEqual(result, false, 'Expected gating to fail without openai/opencode');
 });
 
@@ -360,49 +389,47 @@ test('Model ID matching: partial match works', () => {
 test('Sisyphus requiresAnyModel: passes when any fallback entry available', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const result = isAnyFallbackEntryAvailable(sisyphusReqs.fallbackChain, fullAvailability);
-  
+
   assert.strictEqual(result, true, 'Expected requiresAnyModel to pass with full availability');
 });
 
 test('Sisyphus requiresAnyModel: passes with limited availability', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const result = isAnyFallbackEntryAvailable(sisyphusReqs.fallbackChain, limitedAvailability);
-  
+
   assert.strictEqual(result, true, 'Expected requiresAnyModel to pass with github-copilot and opencode');
 });
 
 test('Sisyphus requiresAnyModel: fails when no providers available', () => {
   const sisyphusReqs = AGENT_MODEL_REQUIREMENTS.sisyphus;
   const result = isAnyFallbackEntryAvailable(sisyphusReqs.fallbackChain, {});
-  
+
   assert.strictEqual(result, false, 'Expected requiresAnyModel to fail with no providers');
 });
 
 // ==========================================
-// Test 7: requiresModel gating (deep category)
+// Test 7: deep category chain (no longer has requiresModel)
 // ==========================================
-test('Deep category requiresModel: passes when gpt-5.3-codex available', () => {
+test('Deep category: resolves to first available provider', () => {
   const deepReqs = CATEGORY_MODEL_REQUIREMENTS.deep;
-  const result = isRequiredModelAvailable(
-    deepReqs.requiresModel,
-    deepReqs.fallbackChain,
-    fullAvailability
-  );
+  const result = resolveModelFromChain(deepReqs.fallbackChain, fullAvailability);
 
-  assert.strictEqual(result, true, 'Expected requiresModel to pass with gpt-5.3-codex available');
+  assert.ok(result, 'Expected a result');
+  // First entry: providers=["openai","github-copilot","venice","opencode","vercel"], model="gpt-5.5"
+  assert.strictEqual(result.model, 'openai/gpt-5.5',
+    `Expected openai/gpt-5.5, got ${result.model}`);
 });
 
-test('Deep category requiresModel: fails when required model unavailable', () => {
+test('Deep category: falls back to opencode when openai unavailable', () => {
   const deepReqs = CATEGORY_MODEL_REQUIREMENTS.deep;
-  const noGPT = { 'anthropic': true, 'google': true };
+  const noOpenAI = { 'opencode': true, 'google': true };
 
-  const result = isRequiredModelAvailable(
-    deepReqs.requiresModel,
-    deepReqs.fallbackChain,
-    noGPT
-  );
+  const result = resolveModelFromChain(deepReqs.fallbackChain, noOpenAI);
 
-  assert.strictEqual(result, false, 'Expected requiresModel to fail without gpt-5.3-codex');
+  assert.ok(result, 'Expected a result from deep chain with opencode');
+  // First entry has opencode, model gpt-5.5
+  assert.strictEqual(result.model, 'opencode/gpt-5.5',
+    `Expected opencode/gpt-5.5, got ${result.model}`);
 });
 
 // ==========================================
@@ -569,6 +596,46 @@ test('Provider alias: zai → zai-coding-plan', () => {
   assert.strictEqual(result, 'zai-coding-plan', `Expected zai-coding-plan, got ${result}`);
 });
 
+test('Provider alias: fireworks-ai → fireworks-ai (canonical)', () => {
+  const result = normalizeProviderName('fireworks-ai');
+  assert.strictEqual(result, 'fireworks-ai', `Expected fireworks-ai, got ${result}`);
+});
+
+test('Provider alias: fireworks → fireworks-ai', () => {
+  const result = normalizeProviderName('fireworks');
+  assert.strictEqual(result, 'fireworks-ai', `Expected fireworks-ai, got ${result}`);
+});
+
+test('Provider alias: xai → xai (canonical)', () => {
+  const result = normalizeProviderName('xai');
+  assert.strictEqual(result, 'xai', `Expected xai, got ${result}`);
+});
+
+test('Provider alias: nvidia → nvidia (canonical)', () => {
+  const result = normalizeProviderName('nvidia');
+  assert.strictEqual(result, 'nvidia', `Expected nvidia, got ${result}`);
+});
+
+test('Provider alias: cerebras → cerebras (canonical)', () => {
+  const result = normalizeProviderName('cerebras');
+  assert.strictEqual(result, 'cerebras', `Expected cerebras, got ${result}`);
+});
+
+test('Provider alias: vercel → vercel (canonical)', () => {
+  const result = normalizeProviderName('vercel');
+  assert.strictEqual(result, 'vercel', `Expected vercel, got ${result}`);
+});
+
+test('Provider alias: opencode-go → opencode-go (canonical)', () => {
+  const result = normalizeProviderName('opencode-go');
+  assert.strictEqual(result, 'opencode-go', `Expected opencode-go, got ${result}`);
+});
+
+test('Provider alias: bailian → bailian-coding-plan', () => {
+  const result = normalizeProviderName('bailian');
+  assert.strictEqual(result, 'bailian-coding-plan', `Expected bailian-coding-plan, got ${result}`);
+});
+
 test('Provider alias: unknown provider returns lowercase', () => {
   const result = normalizeProviderName('SomeUnknownProvider');
   assert.strictEqual(result, 'someunknownprovider', `Expected someunknownprovider, got ${result}`);
@@ -649,7 +716,7 @@ const sisyphusMetadata = {
   access: 'write',
   capabilities: ['thinking', 'reasoning'],
   minContext: 200000,
-  fallbackChain: ['claude-opus-4-6', 'k2p5', 'kimi-k2.5-free', 'glm-5', 'big-pickle']
+  fallbackChain: ['claude-opus-4-7', 'kimi-k2.5', 'k2p5', 'gpt-5.5', 'glm-5', 'big-pickle']
 };
 
 // Mock metadata for unknown agent
@@ -695,7 +762,7 @@ test('Known agent (sisyphus): fallback chain respects provider priority order', 
   assert.ok(recommendations.length > 0, 'Expected recommendations');
   // The first recommendation should be from the first available provider in chain
   const firstProvider = recommendations[0].provider?.toLowerCase();
-  assert.ok(['anthropic', 'github-copilot', 'opencode', 'kimi-for-coding'].includes(firstProvider),
+  assert.ok(['anthropic', 'github-copilot', 'opencode', 'kimi-for-coding', 'vercel'].includes(firstProvider),
     `Expected provider from sisyphus chain, got ${firstProvider}`);
 });
 
@@ -907,7 +974,7 @@ openai/gpt-5.4
   "name": "GPT-5.4",
   "providerID": "openai"
 }`;
-  
+
   const result = parseModels(validOutput);
   assert.strictEqual(result.models.length, 2, 'Expected 2 models');
   assert.strictEqual(result.models[0].id, 'anthropic/claude-opus-4-6', 'Expected correct model ID');
@@ -949,7 +1016,7 @@ openai/gpt-5.4
   "id": "gpt-5.4",
   "name": "GPT-5.2"
 }`;
-  
+
   const result = parseModels(malformedOutput);
   // First model has unclosed braces, second model is valid
   assert.ok(result.warnings.length > 0 || result.errors.length > 0, 'Expected warnings/errors for malformed JSON');
@@ -962,7 +1029,7 @@ test('parseModels: handles missing id field gracefully', () => {
   "name": "Claude Opus 4.6",
   "providerID": "anthropic"
 }`;
-  
+
   const result = parseModels(missingIdOutput);
   assert.strictEqual(result.models.length, 1, 'Expected 1 model with fallback ID');
   assert.ok(result.warnings.length > 0, 'Expected warning for missing id field');
@@ -974,7 +1041,7 @@ test('parseModels: handles negative brace count (malformed)', () => {
 }
   "id": "claude-opus-4-6"
 {`;
-  
+
   const result = parseModels(negativeBraceOutput);
   assert.ok(result.warnings.length > 0, 'Expected warning for negative brace count');
   assert.strictEqual(result.models.length, 0, 'Expected no models from malformed output');
@@ -988,7 +1055,7 @@ test('parseModels: handles truncated/incomplete output', () => {
   "providerID": "anthropic",
   "capabilities": {
     "reasoning": true`;
-  
+
   const result = parseModels(truncatedOutput);
   assert.ok(result.errors.length > 0 || result.warnings.length > 0, 'Expected errors/warnings for truncated output');
   assert.ok(result.partial === true || result.models.length === 0, 'Expected partial=true for truncated data');
@@ -997,7 +1064,7 @@ test('parseModels: handles truncated/incomplete output', () => {
 test('parseModels: handles non-object JSON gracefully', () => {
   const nonObjectOutput = `anthropic/claude-opus-4-6
 "just a string"`;
-  
+
   const result = parseModels(nonObjectOutput);
   assert.ok(result.warnings.length > 0, 'Expected warning for non-object JSON');
   assert.strictEqual(result.models.length, 0, 'Expected no models from non-object JSON');
@@ -1016,7 +1083,7 @@ google/gemini-3-pro
   "id": "gemini-3-pro",
   "name": "Gemini 3 Pro"
 }`;
-  
+
   const result = parseModels(mixedOutput);
   assert.strictEqual(result.models.length, 2, 'Expected 2 valid models');
   assert.ok(result.warnings.length > 0, 'Expected warning for invalid model');
@@ -1025,7 +1092,7 @@ google/gemini-3-pro
 
 test('parseModels: returns structured result with all fields', () => {
   const result = parseModels('anthropic/test\n{"id":"test"}');
-  
+
   assert.ok(Array.isArray(result.models), 'Expected models to be an array');
   assert.ok(Array.isArray(result.warnings), 'Expected warnings to be an array');
   assert.ok(Array.isArray(result.errors), 'Expected errors to be an array');
