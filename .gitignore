@@ -35,6 +35,7 @@ temp/
 # AI assistant working directories
 .opencode/
 .sisyphus/
+.omo/
 
 # Local scratch
 tmp_prompts.js
