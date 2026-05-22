@@ -28,6 +28,7 @@ const {
 
 const { normalizeAgentKey, normalizeProviderName, getProviderAliases, PROVIDER_ALIASES } = require('../lib/constants');
 const { parseModels, hasExtendedThinking } = require('../lib/core/models');
+const { UPSTREAM_MODEL_REQUIREMENTS_PATH, getModelRequirementsUrl } = require('../lib/upstream-constants');
 
 // Test counters
 let passed = 0;
@@ -611,6 +612,11 @@ test('Provider alias: xai → xai (canonical)', () => {
   assert.strictEqual(result, 'xai', `Expected xai, got ${result}`);
 });
 
+test('Provider alias: deepseek → deepseek (canonical)', () => {
+  const result = normalizeProviderName('deepseek');
+  assert.strictEqual(result, 'deepseek', `Expected deepseek, got ${result}`);
+});
+
 test('Provider alias: nvidia → nvidia (canonical)', () => {
   const result = normalizeProviderName('nvidia');
   assert.strictEqual(result, 'nvidia', `Expected nvidia, got ${result}`);
@@ -696,8 +702,15 @@ test('PROVIDER_ALIASES: contains expected mappings', () => {
   assert.strictEqual(PROVIDER_ALIASES['claude'], 'anthropic', 'claude should map to anthropic');
   assert.strictEqual(PROVIDER_ALIASES['gemini'], 'google', 'gemini should map to google');
   assert.strictEqual(PROVIDER_ALIASES['gpt'], 'openai', 'gpt should map to openai');
+  assert.strictEqual(PROVIDER_ALIASES['deepseek'], 'deepseek', 'deepseek should map to deepseek');
   assert.strictEqual(PROVIDER_ALIASES['copilot'], 'github-copilot', 'copilot should map to github-copilot');
   assert.strictEqual(PROVIDER_ALIASES['kimi'], 'kimi-for-coding', 'kimi should map to kimi-for-coding');
+});
+
+test('Upstream requirements path uses model-core package source', () => {
+  assert.strictEqual(UPSTREAM_MODEL_REQUIREMENTS_PATH, 'packages/model-core/src/model-requirements.ts');
+  assert.ok(getModelRequirementsUrl().includes('/packages/model-core/src/model-requirements.ts'));
+  assert.ok(!getModelRequirementsUrl().includes('/src/shared/model-requirements.ts'));
 });
 
 // ==========================================

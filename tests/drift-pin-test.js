@@ -44,9 +44,26 @@ function createCachedSnapshot(cacheDir, sha) {
   return cacheFile;
 }
 
-// Clean up pinned SHA file
+// Clean up pinned SHA file (within test isolation only)
 function cleanupPinnedSha() {
   if (fs.existsSync(PINNED_SHA_FILE)) {
+    fs.unlinkSync(PINNED_SHA_FILE);
+  }
+}
+
+// Save and restore pre-test .omo-upstream-sha to avoid side effects
+let _savedShaContent = null;
+function savePinnedSha() {
+  if (fs.existsSync(PINNED_SHA_FILE)) {
+    _savedShaContent = fs.readFileSync(PINNED_SHA_FILE, 'utf8');
+  } else {
+    _savedShaContent = null;
+  }
+}
+function restorePinnedSha() {
+  if (_savedShaContent !== null) {
+    fs.writeFileSync(PINNED_SHA_FILE, _savedShaContent);
+  } else if (fs.existsSync(PINNED_SHA_FILE)) {
     fs.unlinkSync(PINNED_SHA_FILE);
   }
 }
@@ -247,7 +264,7 @@ if (!fs.existsSync(MOCK_FILE)) {
   process.exit(1);
 }
 
-cleanupPinnedSha();
+savePinnedSha();
 
 const results = [
   testPinWithCachedSnapshot(),
@@ -255,7 +272,7 @@ const results = [
   testPinFailsWithInvalidCachedSha()
 ];
 
-cleanupPinnedSha();
+restorePinnedSha();
 
 console.log('\n========================================');
 const passed = results.filter(r => r).length;

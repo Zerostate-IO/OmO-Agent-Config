@@ -27,6 +27,7 @@ const {
   UPSTREAM_OWNER,
   UPSTREAM_REPO,
   UPSTREAM_BRANCH,
+  UPSTREAM_MODEL_REQUIREMENTS_PATH,
   getModelRequirementsUrl,
   getCommitsApiUrl
 } = require('../lib/upstream-constants');
@@ -1047,7 +1048,7 @@ async function main() {
   }
 
   console.log(`${colors.cyan}💡 Run the following to update:${colors.reset}`);
-  console.log(`   1. Review upstream changes at: https://github.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/blob/${UPSTREAM_BRANCH}/src/shared/model-requirements.ts`);
+  console.log(`   1. Review upstream changes at: https://github.com/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/blob/${UPSTREAM_BRANCH}/${UPSTREAM_MODEL_REQUIREMENTS_PATH}`);
   console.log(`   2. Update ${LOCAL_FILE}`);
   console.log(`   3. Update pinned SHA in file header or .omo-upstream-sha`);
   console.log('');

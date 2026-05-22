@@ -29,7 +29,7 @@ All upstream references flow through a single source of truth:
 | Branch | `dev` | Default development branch |
 | Schema | `oh-my-opencode.schema.json` | Filename unchanged for backcompat |
 | Config file | `oh-my-opencode.jsonc` | Filename unchanged for backcompat |
-| Model requirements | `src/shared/model-requirements.ts` | Fetched from branch |
+| Model requirements | `packages/model-core/src/model-requirements.ts` | Fetched from branch |
 | Pinned SHA | `.omo-upstream-sha` | Tracks exact upstream commit |
 
 The `sourceRef` object (returned by `drift-check.js --json` and `upstream-snapshot.js`) includes `repo`, `branch`, `commitSha`, and `modelRequirementsUrl` for full traceability.
@@ -50,7 +50,7 @@ node scripts/drift-check.js
 ```
 🔍 OmO Upstream Drift Check
    Local: /path/to/lib/core/model-requirements.js
-   Upstream: https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/src/shared/model-requirements.ts
+   Upstream: https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/packages/model-core/src/model-requirements.ts
    Mode: check (read-only)
 
 📊 Comparison Results:
@@ -73,7 +73,7 @@ Agents with changed fallback chains or gating:
       local chain:    openai/gpt-4.1 → anthropic/claude-opus-4-5
 
 💡 Run the following to update:
-   1. Review upstream changes at: https://github.com/code-yeongyu/oh-my-openagent/blob/dev/src/shared/model-requirements.ts
+   1. Review upstream changes at: https://github.com/code-yeongyu/oh-my-openagent/blob/dev/packages/model-core/src/model-requirements.ts
    2. Update /path/to/lib/core/model-requirements.js
    3. Update pinned SHA in file header or .omo-upstream-sha
 ```
