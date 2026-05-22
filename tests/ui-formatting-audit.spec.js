@@ -221,7 +221,7 @@ function makeDiagnosticsResponse() {
       discoveredNotExpected: [
         { provider: 'google', severity: 'info', message: 'Discovered but not referenced in any agent assignment' }
       ],
-      aliasNormalizedMatches: [
+      matched: [
         { provider: 'fireworks → fireworks-ai', severity: 'info', message: 'Alias normalized: fireworks mapped to fireworks-ai' }
       ]
     },
@@ -232,7 +232,7 @@ function makeDiagnosticsResponse() {
     },
     policy: {
       lmStudio: {
-        customDetection: false,
+        customDetection: 'disabled',
         reason: 'LM Studio models are discovered via opencode CLI only. No localhost:1234 probing is performed.'
       }
     },

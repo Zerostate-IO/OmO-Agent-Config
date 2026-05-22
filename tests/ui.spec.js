@@ -334,14 +334,14 @@ test.describe('OmO Agent Config UI', () => {
           mismatches: {
             expectedButMissing: ['test-provider'],
             discoveredNotExpected: [],
-            aliasNormalizedMatches: []
+            matched: []
           },
           cacheStatus: {
             exists: false
           },
           policy: {
             lmStudio: {
-              customDetection: false
+              customDetection: 'disabled'
             }
           },
           generatedAt: new Date().toISOString()
@@ -387,9 +387,9 @@ test.describe('OmO Agent Config UI', () => {
             discovered: ['openai', 'test-provider']
           },
           mismatches: {
-            expectedButMissing: ['anthropic'],
-            discoveredNotExpected: ['test-provider'],
-            aliasNormalizedMatches: [{ from: 'fireworks', to: 'fireworks-ai' }]
+            expectedButMissing: [{ provider: 'anthropic', severity: 'warning', message: 'Expected anthropic not discovered' }],
+            discoveredNotExpected: [{ provider: 'test-provider', severity: 'info', message: 'Discovered but not expected' }],
+            matched: [{ provider: 'fireworks', severity: 'info', message: 'Normalized: fireworks -> fireworks-ai' }]
           },
           cacheStatus: {
             exists: true,
@@ -398,7 +398,7 @@ test.describe('OmO Agent Config UI', () => {
           },
           policy: {
             lmStudio: {
-              customDetection: false,
+              customDetection: 'disabled',
               reason: 'LM Studio models are discovered via opencode CLI only'
             }
           },
@@ -492,7 +492,7 @@ test.describe('OmO Agent Config UI', () => {
           mismatches: {
             expectedButMissing: [], // Empty - no mismatches
             discoveredNotExpected: [],
-            aliasNormalizedMatches: []
+            matched: []
           },
           cacheStatus: {
             exists: true,
@@ -501,7 +501,7 @@ test.describe('OmO Agent Config UI', () => {
           },
           policy: {
             lmStudio: {
-              customDetection: false
+              customDetection: 'disabled'
             }
           },
           generatedAt: new Date().toISOString()
@@ -543,10 +543,10 @@ test.describe('OmO Agent Config UI', () => {
           mismatches: {
             expectedButMissing: [],
             discoveredNotExpected: [],
-            aliasNormalizedMatches: []
+            matched: []
           },
           cacheStatus: { exists: false },
-          policy: { lmStudio: { customDetection: false } },
+          policy: { lmStudio: { customDetection: 'disabled' } },
           generatedAt: new Date().toISOString()
         })
       });
@@ -575,11 +575,11 @@ test.describe('OmO Agent Config UI', () => {
     await testPage.close();
   });
 
-  test('LM Studio policy shows disabled state correctly in modal', async ({ page, context }) => {
+  test('LM Studio policy shows canonical disabled state in modal', async ({ page, context }) => {
     // Create a new page for clean state
     const testPage = await context.newPage();
     
-    // Stub diagnostics API with explicit LM Studio policy disabled
+    // Stub diagnostics API with canonical LM Studio policy disabled string
     await testPage.route('**/api/providers/diagnostics', async (route) => {
       await route.fulfill({
         status: 200,
@@ -590,12 +590,12 @@ test.describe('OmO Agent Config UI', () => {
           mismatches: {
             expectedButMissing: ['some-provider'], // Trigger banner
             discoveredNotExpected: [],
-            aliasNormalizedMatches: []
+            matched: []
           },
           cacheStatus: { exists: true, timestamp: Date.now(), ageMs: 1000 },
           policy: {
             lmStudio: {
-              customDetection: false,
+              customDetection: 'disabled',
               reason: 'Models only surface via opencode models --verbose. No localhost:1234 probing.'
             }
           },
@@ -619,13 +619,14 @@ test.describe('OmO Agent Config UI', () => {
     const lmStudioSection = await testPage.locator('h3:has-text("LM Studio Policy")');
     await expect(lmStudioSection).toBeVisible();
     
-    // Verify the policy item shows disabled state
+    // Verify the policy item shows disabled state with CLI-driven text
     const policyItem = await testPage.locator('.diagnostics-policy .policy-item');
     await expect(policyItem).toBeVisible();
     const policyText = await policyItem.textContent();
     expect(policyText.toLowerCase()).toContain('disabled');
+    expect(policyText.toLowerCase()).toContain('cli-driven');
     
-    // Verify the policy reason mentions CLI
+    // Verify the policy reason mentions localhost
     const policyReason = await testPage.locator('.diagnostics-policy .policy-reason');
     await expect(policyReason).toBeVisible();
     const reasonText = await policyReason.textContent();
@@ -633,6 +634,55 @@ test.describe('OmO Agent Config UI', () => {
     
     // Take screenshot
     await testPage.screenshot({ path: 'test-results/provider-diagnostics-lmstudio-policy.png' });
+    await testPage.close();
+  });
+
+  test('LM Studio policy renders disabled state for legacy boolean false', async ({ page, context }) => {
+    const testPage = await context.newPage();
+
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: { fromConfig: {}, fromAssignments: {} },
+          normalized: { discovered: [] },
+          mismatches: {
+            expectedButMissing: ['legacy-provider'],
+            discoveredNotExpected: [],
+            matched: []
+          },
+          cacheStatus: { exists: true, timestamp: Date.now(), ageMs: 1000 },
+          policy: {
+            lmStudio: {
+              customDetection: false,
+              reason: 'Legacy boolean false — CLI-driven discovery only'
+            }
+          },
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+
+    const banner = await testPage.locator('#provider-diagnostics-banner');
+    await expect(banner).toBeVisible();
+    await banner.locator('.view-details-btn').click();
+    await testPage.waitForTimeout(500);
+
+    const lmStudioSection = await testPage.locator('h3:has-text("LM Studio Policy")');
+    await expect(lmStudioSection).toBeVisible();
+
+    const policyItem = await testPage.locator('.diagnostics-policy .policy-item');
+    await expect(policyItem).toBeVisible();
+    const policyText = await policyItem.textContent();
+    expect(policyText.toLowerCase()).toContain('disabled');
+    expect(policyText.toLowerCase()).toContain('cli-driven');
+
+    await testPage.screenshot({ path: 'test-results/provider-diagnostics-lmstudio-policy-legacy.png' });
     await testPage.close();
   });
 
@@ -1035,6 +1085,237 @@ test.describe('OmO Agent Config UI', () => {
     await expect(emptyDiv).toContainText('No fallback models configured');
     
     await testPage.screenshot({ path: 'test-results/fallback-empty-state.png' });
+    await testPage.close();
+  });
+
+  test('Auth diagnostics renders provider status with xai present and deepseek present', async ({ page, context }) => {
+    const testPage = await context.newPage();
+
+    const FAKE_SECRET_TOKEN = 'sk-should-never-appear-in-dom-x9k2m';
+
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: {
+            fromConfig: { providersNormalized: ['xai', 'deepseek'], pluginHints: [], warnings: [] },
+            fromAssignments: { providersNormalized: [], sources: [], warnings: [] }
+          },
+          normalized: { discovered: ['xai', 'deepseek'] },
+          mismatches: {
+            expectedButMissing: [],
+            discoveredNotExpected: [],
+            matched: []
+          },
+          cacheStatus: { exists: true, timestamp: Date.now(), ageMs: 1000 },
+          policy: { lmStudio: { customDetection: 'disabled' } },
+          auth: {
+            readOnly: true,
+            noSecretOutput: true,
+            authFile: { exists: true },
+            providers: {
+              xai: {
+                provider: 'xai',
+                supportedAuthTypes: ['api-key', 'oauth'],
+                detectedAuthTypes: ['oauth'],
+                status: 'present',
+                sources: [
+                  { kind: 'auth-file', authType: 'oauth', fields: ['access', 'refresh'], present: true, redacted: true },
+                  { kind: 'environment', authType: 'api-key', env: 'XAI_API_KEY', present: true, redacted: true }
+                ],
+                warnings: []
+              },
+              deepseek: {
+                provider: 'deepseek',
+                supportedAuthTypes: ['api-key'],
+                detectedAuthTypes: ['api-key'],
+                status: 'present',
+                sources: [
+                  { kind: 'opencode-config', authType: 'api-key', fields: ['provider.deepseek.apiKey'], present: true, redacted: true }
+                ],
+                warnings: []
+              }
+            },
+            warnings: []
+          },
+          hints: [],
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+
+    const diagnosticsBtn = await testPage.locator('#provider-diagnostics-btn');
+    await expect(diagnosticsBtn).toBeVisible();
+    await diagnosticsBtn.click();
+    await testPage.waitForTimeout(500);
+
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+
+    const authHeading = await testPage.locator('h3:has-text("Auth Diagnostics")');
+    await expect(authHeading).toBeVisible();
+
+    const xaiCard = await testPage.locator('.auth-provider-card.auth-present:has(.provider-name:text("xai"))');
+    await expect(xaiCard).toBeVisible();
+    await expect(xaiCard.locator('.auth-status')).toContainText('present');
+
+    const xaiBadges = await xaiCard.locator('.auth-type-badge');
+    expect(await xaiBadges.count()).toBeGreaterThanOrEqual(1);
+
+    const xaiSources = await xaiCard.locator('.auth-source-kind');
+    expect(await xaiSources.count()).toBeGreaterThanOrEqual(1);
+
+    const xaiRedacted = await xaiCard.locator('.auth-redacted');
+    expect(await xaiRedacted.count()).toBeGreaterThanOrEqual(1);
+
+    const deepseekCard = await testPage.locator('.auth-provider-card.auth-present:has(.provider-name:text("deepseek"))');
+    await expect(deepseekCard).toBeVisible();
+    await expect(deepseekCard.locator('.auth-status')).toContainText('present');
+
+    const safetyNotice = await testPage.locator('.auth-safety-notice');
+    await expect(safetyNotice).toBeVisible();
+    await expect(safetyNotice).toContainText('Secret values are never displayed');
+
+    const pageText = await testPage.locator('body').textContent();
+    expect(pageText).not.toContain(FAKE_SECRET_TOKEN);
+
+    await testPage.screenshot({ path: '.omo/evidence/task-6-auth-modal.png' });
+    await testPage.close();
+  });
+
+  test('Auth diagnostics renders missing state with no secrets leaked', async ({ page, context }) => {
+    const testPage = await context.newPage();
+
+    const FAKE_SECRET_KEY = 'ds-sk-should-not-leak-from-fixture-77z1';
+
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: { fromConfig: { providersNormalized: ['xai', 'deepseek'], pluginHints: [], warnings: [] }, fromAssignments: { providersNormalized: [], sources: [], warnings: [] } },
+          normalized: { discovered: [] },
+          mismatches: {
+            expectedButMissing: [{ provider: 'xai', severity: 'warning', message: 'Expected xai not discovered' }],
+            discoveredNotExpected: [],
+            matched: []
+          },
+          cacheStatus: { exists: false },
+          policy: { lmStudio: { customDetection: 'disabled' } },
+          auth: {
+            readOnly: true,
+            noSecretOutput: true,
+            authFile: { exists: false },
+            providers: {
+              xai: {
+                provider: 'xai',
+                supportedAuthTypes: ['api-key', 'oauth'],
+                detectedAuthTypes: [],
+                status: 'missing',
+                sources: [],
+                warnings: ['No credentials found for xai']
+              },
+              deepseek: {
+                provider: 'deepseek',
+                supportedAuthTypes: ['api-key'],
+                detectedAuthTypes: [],
+                status: 'missing',
+                sources: [],
+                warnings: ['No credentials found for deepseek']
+              }
+            },
+            warnings: ['OpenCode auth file not found']
+          },
+          hints: [],
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+
+    const banner = await testPage.locator('#provider-diagnostics-banner');
+    await expect(banner).toBeVisible();
+
+    const viewDetailsBtn = await banner.locator('.view-details-btn');
+    await viewDetailsBtn.click();
+    await testPage.waitForTimeout(500);
+
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+
+    const authHeading = await testPage.locator('h3:has-text("Auth Diagnostics")');
+    await expect(authHeading).toBeVisible();
+
+    const xaiCard = await testPage.locator('.auth-provider-card.auth-missing:has(.provider-name:text("xai"))');
+    await expect(xaiCard).toBeVisible();
+    await expect(xaiCard.locator('.auth-status')).toContainText('missing');
+
+    const xaiWarning = await xaiCard.locator('.auth-warning');
+    expect(await xaiWarning.count()).toBeGreaterThanOrEqual(1);
+
+    const deepseekCard = await testPage.locator('.auth-provider-card.auth-missing:has(.provider-name:text("deepseek"))');
+    await expect(deepseekCard).toBeVisible();
+    await expect(deepseekCard.locator('.auth-status')).toContainText('missing');
+
+    const pageText = await testPage.locator('body').textContent();
+    expect(pageText).not.toContain(FAKE_SECRET_KEY);
+
+    await testPage.screenshot({ path: '.omo/evidence/task-6-auth-modal-missing.png' });
+    await testPage.close();
+  });
+
+  test('Auth diagnostics handles missing auth payload gracefully', async ({ page, context }) => {
+    const testPage = await context.newPage();
+
+    await testPage.route('**/api/providers/diagnostics', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          sources: { fromConfig: {}, fromAssignments: {} },
+          normalized: { discovered: [] },
+          mismatches: { expectedButMissing: [], discoveredNotExpected: [], matched: [] },
+          cacheStatus: { exists: false },
+          policy: { lmStudio: { customDetection: 'disabled' } },
+          generatedAt: new Date().toISOString()
+        })
+      });
+    });
+
+    const consoleErrors = [];
+    testPage.on('console', msg => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+
+    await testPage.goto('http://localhost:3456');
+    await testPage.waitForLoadState('networkidle');
+    await testPage.waitForTimeout(1500);
+
+    const diagnosticsBtn = await testPage.locator('#provider-diagnostics-btn');
+    await diagnosticsBtn.click();
+    await testPage.waitForTimeout(500);
+
+    const modal = await testPage.locator('#modal');
+    await expect(modal).toBeVisible();
+
+    const authHeading = await testPage.locator('h3:has-text("Auth Diagnostics")');
+    await expect(authHeading).toBeVisible();
+
+    const emptyMsg = await testPage.locator('.diagnostics-section:has(h3:text("Auth Diagnostics")) .diagnostics-empty');
+    await expect(emptyMsg).toBeVisible();
+    await expect(emptyMsg).toContainText('No auth diagnostics available');
+
+    const authRelatedErrors = consoleErrors.filter(e => e.toLowerCase().includes('auth'));
+    expect(authRelatedErrors.length).toBe(0);
+
     await testPage.close();
   });
 });
