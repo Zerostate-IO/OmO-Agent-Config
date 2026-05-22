@@ -56,6 +56,23 @@ function run() {
   }
 
   {
+    const m = formatModel({
+      id: 'deepseek/deepseek-v4-pro',
+      providerID: 'deepseek',
+      name: 'DeepSeek V4 Pro',
+      limit: { context: 1000000 },
+      capabilities: { reasoning: true, toolcall: true },
+      cost: { input: 2, output: 8 }
+    });
+
+    assert.strictEqual(constants.normalizeProviderName('deepseek'), 'deepseek');
+    assert.strictEqual(m.billingModel, 'metered');
+    assert.strictEqual(m.speedTier, 'fast');
+    assert.strictEqual(m.priorityTier, 3);
+    assert.ok(m.badges.includes('R'), 'DeepSeek reasoning models should expose reasoning badge');
+  }
+
+  {
     const prevFireworks = constants.PROVIDER_POLICIES_DEFAULTS['fireworks-ai'].priorityTier;
     const prevOpenai = constants.PROVIDER_POLICIES_DEFAULTS['openai'].priorityTier;
 

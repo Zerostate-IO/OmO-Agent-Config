@@ -27,6 +27,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { normalizeProviderName } = require(path.join(__dirname, '..', 'lib', 'constants'));
 
 // Configuration
 const MODEL_REQUIREMENTS_FILE = path.join(__dirname, '..', 'lib', 'core', 'model-requirements.js');
@@ -66,7 +67,7 @@ function detectProviders() {
     for (const line of lines) {
       const match = line.match(/^([^/]+)\//);
       if (match) {
-        providers.add(match[1].trim());
+        providers.add(normalizeProviderName(match[1].trim()));
       }
     }
     
@@ -130,20 +131,21 @@ const MODEL_MAPPINGS = {
   // Fast/cheap models (for explore, librarian, quick category)
   'minimax-m2.5': {
     'bailian-coding-plan': 'MiniMax-M2.5',
-    'opencode': 'minimax-m2.5-free',
-    'openrouter': 'minimax-m2.5',
+    'opencode': 'minimax-m2.5',
+    'openrouter': 'minimax/minimax-m2.5',
     default: 'minimax-m2.5'
   },
   'minimax-m2.7': {
     'bailian-coding-plan': 'MiniMax-M2.5',  // fallback to m2.5
-    'opencode': 'minimax-m2.5-free',
-    'openrouter': 'minimax-m2.5',
-    default: 'minimax-m2.5'
+    'opencode': 'minimax-m2.7',
+    'openrouter': 'minimax/minimax-m2.7',
+    default: 'minimax-m2.7'
   },
   'minimax-m2.7-highspeed': {
     'bailian-coding-plan': 'MiniMax-M2.5',
-    'opencode': 'minimax-m2.5-free',
-    default: 'minimax-m2.5'
+    'opencode': 'minimax-m2.7',
+    'openrouter': 'minimax/minimax-m2.7',
+    default: 'minimax-m2.7'
   },
   
   // Reasoning/coding models (for hephaestus, deep category)
@@ -156,7 +158,8 @@ const MODEL_MAPPINGS = {
   'gpt-5.4': {
     'openai': 'gpt-5.4',
     'openrouter': 'gpt-5.4',
-    'xai': 'grok-3',
+    'deepseek': 'deepseek-v4-pro',
+    'xai': 'grok-4.3',
     'bailian-coding-plan': 'qwen3.5-plus',
     'google': 'antigravity-gemini-3-pro-high',
     default: 'gpt-5.4'
@@ -166,7 +169,7 @@ const MODEL_MAPPINGS = {
   'gpt-5.4-vision': {
     'openai': 'gpt-5.4',
     'google': 'antigravity-gemini-3-pro-high',
-    'xai': 'grok-2-vision',
+    'xai': 'grok-4.3',
     default: 'gpt-5.4'
   },
   'gemini-3.1-pro': {
@@ -181,25 +184,35 @@ const MODEL_MAPPINGS = {
   },
   
   // Fast coding models (for explore agent)
+  'gpt-5.4-mini-fast': {
+    'openai': 'gpt-5.4-mini-fast',
+    'deepseek': 'deepseek-v4-flash',
+    'xai': 'grok-build-0.1',
+    'opencode': 'gpt-5-nano',
+    default: 'gpt-5.4-mini-fast'
+  },
   'grok-code-fast-1': {
-    'xai': 'grok-code-fast-1',
+    'deepseek': 'deepseek-v4-flash',
+    'xai': 'grok-build-0.1',
     'openai': 'gpt-5.4-mini',
     'bailian-coding-plan': 'qwen3-coder-plus',
-    default: 'grok-code-fast-1'
+    default: 'grok-build-0.1'
   },
   
   // Claude models (for sisyphus, oracle, high-quality agents)
   'claude-opus-4-6': {
     'opencode': 'claude-opus-4-6',
     'openrouter': 'claude-opus-4-6',
-    'xai': 'grok-3',
+    'deepseek': 'deepseek-v4-pro',
+    'xai': 'grok-4.20-0309-reasoning',
     'openai': 'gpt-5.4',
     default: 'claude-opus-4-6'
   },
   'claude-sonnet-4-6': {
     'opencode': 'claude-sonnet-4-6',
     'openrouter': 'claude-sonnet-4-6',
-    'xai': 'grok-3-fast',
+    'deepseek': 'deepseek-v4-flash',
+    'xai': 'grok-4.3',
     'openai': 'gpt-5.4-mini',
     default: 'claude-sonnet-4-6'
   },
@@ -248,7 +261,8 @@ const MODEL_MAPPINGS = {
   'gpt-5.4-mini': {
     'openai': 'gpt-5.4-mini',
     'opencode': 'gpt-5-nano',
-    'xai': 'grok-3-mini',
+    'deepseek': 'deepseek-v4-flash',
+    'xai': 'grok-build-0.1',
     default: 'gpt-5.4-mini'
   }
 };
@@ -257,11 +271,17 @@ const MODEL_MAPPINGS = {
  * Get best available model for a provider
  * @param {string} modelId - Target model ID
  * @param {Set<string>} availableProviders - User's available providers
+ * @param {Object} options - Matching options
  * @returns {Object|null} Best provider/model match or null
  */
-function getBestModelMatch(modelId, availableProviders) {
+function getBestModelMatch(modelId, availableProviders, options = {}) {
+  const { allowSameModelAnyProvider = true } = options;
   const mappings = MODEL_MAPPINGS[modelId];
   if (!mappings) {
+    if (!allowSameModelAnyProvider) {
+      return null;
+    }
+
     // No mapping - try to use as-is with available providers
     for (const provider of availableProviders) {
       return { provider, model: modelId };
@@ -276,7 +296,11 @@ function getBestModelMatch(modelId, availableProviders) {
       return { provider, model: mappedModel };
     }
   }
-  
+
+  if (!allowSameModelAnyProvider) {
+    return null;
+  }
+
   // Fallback to default with first available provider
   const defaultModel = mappings.default || modelId;
   for (const provider of availableProviders) {
@@ -299,16 +323,18 @@ function buildFallbackChain(upstreamChain, availableProviders) {
   for (const entry of upstreamChain) {
     const matchingProviders = [];
     
-    // Find which providers from this entry are available
+    const seenCanonical = new Set();
     for (const provider of entry.providers) {
-      if (availableProviders.has(provider)) {
-        matchingProviders.push(provider);
+      const canonical = normalizeProviderName(provider);
+      if (availableProviders.has(canonical) && !seenCanonical.has(canonical)) {
+        matchingProviders.push(canonical);
+        seenCanonical.add(canonical);
       }
     }
     
     // If no providers match, try to find equivalent model
     if (matchingProviders.length === 0) {
-      const match = getBestModelMatch(entry.model, availableProviders);
+      const match = getBestModelMatch(entry.model, availableProviders, { allowSameModelAnyProvider: false });
       if (match && !usedModels.has(match.model)) {
         newChain.push({
           providers: [match.provider],
@@ -357,8 +383,8 @@ function generateUpdatedRequirements(current, availableProviders) {
       
       // Copy other properties
       if (config.requiresProvider) {
-        // Filter requiresProvider to only include available ones
-        const filtered = config.requiresProvider.filter(p => availableProviders.has(p));
+        const canonical = [...new Set(config.requiresProvider.map(p => normalizeProviderName(p)))];
+        const filtered = canonical.filter(p => availableProviders.has(p));
         if (filtered.length > 0) {
           updated.agents[agentName].requiresProvider = filtered;
         }
@@ -595,7 +621,7 @@ async function main() {
   // Detect or use specified providers
   let availableProviders;
   if (specifiedProviders) {
-    availableProviders = new Set(specifiedProviders);
+    availableProviders = new Set(specifiedProviders.map(p => normalizeProviderName(p)));
     if (!jsonOutput) {
       log(`${colors.gray}Using specified providers: ${Array.from(availableProviders).join(', ')}${colors.reset}`);
     }
