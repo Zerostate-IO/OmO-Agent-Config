@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-05-21
+
 ### Changed
 - **Upstream contract centralization**: All upstream repo/branch/schema coordinates now flow through `lib/upstream-constants.js` (single source of truth). Active runtime fetches no longer contain scattered owner/repo strings.
 - **Schema compatibility**: Schema validation now supports both legacy (`definitions` object) and current (draft-07 inline `properties`) upstream schema layouts. Three-layout detection handles format transitions gracefully.
-- **Model requirements sync**: `lib/core/model-requirements.js` synced to pinned upstream SHA `216283e2` from `dev` branch. Includes new providers (`vercel`, `opencode-go`, `moonshotai`, `firmware`, `aihubmix`) and updated fallback chains for all 11 agents and 9 categories.
+- **Model requirements sync**: `lib/core/model-requirements.js` synced to pinned upstream SHA `0904e237` from `dev` branch. Includes new providers (`vercel`, `opencode-go`, `moonshotai`, `firmware`, `aihubmix`) and updated fallback chains for all 11 agents and 9 categories.
 - **Fallback model objects**: `fallback_models` entries can now be rich objects (`{ model, variant, ... }`) alongside plain strings. The UI preserves object entries and displays formatted labels with variant/reasoning metadata instead of `[object Object]`.
 - **Upstream sync hardened**: Apply mode disabled in both `provider-aware-sync.js` script and `/api/upstream/sync` route until source-file backup/write-lock guard exists. Dry-run returns structured JSON with `sourceRef`, per-provider diffs, and change counts.
 - **Documentation updated**: Canonical upstream repo documented as `code-yeongyu/oh-my-openagent`. Config file (`oh-my-opencode.jsonc`), schema filename (`oh-my-opencode.schema.json`), and package identifiers remain unchanged for backward compatibility.
 
 ### Added
+- **Direct DeepSeek/XAI provider support**: Provider policy mappings for DeepSeek and XAI (Grok) models, enabling direct API key configuration and cost-aware ranking alongside existing providers.
+- **Redacted provider auth diagnostics**: Provider diagnostics endpoint now redacts API keys and secrets in output, preventing credential leakage in diagnostic reports and logs.
+- **Opt-in provider health check endpoint**: `POST /api/providers/health-check` returns cached provider status by default (`live: false`); set `live: true` in request body to run a tiny opencode probe per provider.
+- **Release/readiness metadata gate**: `scripts/release-readiness-check.js` validates internal consistency of version strings across `VERSION`, `package.json`, `package-lock.json`, upstream SHA pin, and `.gitignore` coverage before release tagging.
 - **Config split diagnostics**: Read-only detection of sibling `oh-my-openagent.jsonc`, stale `$schema` URLs, and old plugin names. Surfaces as advisory warnings in provider diagnostics modal and `/api/config/diagnostics` endpoint. No automatic migration.
 - **Provider diagnostics integration**: Config-split warnings surface in the existing provider diagnostics flow with `[CODE]` prefixed hints.
 - **Pinned SHA tracking**: `.omo-upstream-sha` pins the exact upstream commit. `drift-check.js` and `upstream-snapshot.js` output `sourceRef` with repo, branch, commit SHA, and model requirements URL for traceability.

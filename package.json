@@ -1,6 +1,6 @@
 {
   "name": "omo-agent-config",
-  "version": "1.0.0",
+  "version": "0.11.0",
   "description": "> Interactive CLI tool for managing [Oh My OpenAgent (Oh My Opencode)](https://github.com/code-yeongyu/oh-my-openagent) agent model assignments",
   "main": "index.js",
   "directories": {
