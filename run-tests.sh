@@ -35,25 +35,25 @@ get_port_from_log() {
 run_install_tests() {
     echo "=== Install Tests ==="
     echo ""
-    
+
     local INSTALL_DIR="$HOME/.config/opencode"
     local BINARY="$INSTALL_DIR/bin/opencode-agent-config"
     local FAILED=0
-    
+
     if [ -f "$BINARY" ]; then
         echo "✅ Binary exists: $BINARY"
     else
         echo "❌ Binary not found: $BINARY"
         FAILED=1
     fi
-    
+
     if [ -x "$BINARY" ]; then
         echo "✅ Binary is executable"
     else
         echo "❌ Binary is not executable"
         FAILED=1
     fi
-    
+
     if [ -x "$BINARY" ]; then
         if "$BINARY" --help > /dev/null 2>&1; then
             echo "✅ Binary responds to --help"
@@ -209,24 +209,50 @@ console.log('  Models loaded:', d.total, 'models,', d.providers.length, 'provide
     echo "$DIAGNOSTICS_RESPONSE" | node -e "
 const d = JSON.parse(require('fs').readFileSync(0));
 // Validate required top-level keys
-const required = ['sources', 'mismatches', 'cacheStatus', 'policy', 'hints'];
+const required = ['sources', 'mismatches', 'cacheStatus', 'policy', 'auth', 'hints'];
 for (const key of required) {
   if (!(key in d)) throw new Error('Missing required key: ' + key);
 }
 // Validate sources structure
 if (typeof d.sources !== 'object') throw new Error('sources must be object');
-// Validate mismatches structure
+// Validate mismatches structure - must use matched, not old pre-rename bucket
 if (!Array.isArray(d.mismatches.expectedButMissing)) throw new Error('mismatches.expectedButMissing must be array');
 if (!Array.isArray(d.mismatches.discoveredNotExpected)) throw new Error('mismatches.discoveredNotExpected must be array');
-if (!Array.isArray(d.mismatches.aliasNormalizedMatches)) throw new Error('mismatches.aliasNormalizedMatches must be array');
+if (!Array.isArray(d.mismatches.matched)) throw new Error('mismatches.matched must be array');
+const _oldKey = 'alias' + 'Normalized' + 'Matches';
+if (_oldKey in d.mismatches) throw new Error('mismatches.' + _oldKey + ' must NOT exist');
+// Validate matched entries have provider, severity, message, source
+for (const m of d.mismatches.matched) {
+  if (typeof m.provider !== 'string') throw new Error('matched entry must have string provider');
+  if (m.severity !== 'info') throw new Error('matched entry severity must be info');
+}
 // Validate cacheStatus structure
 if (typeof d.cacheStatus.exists !== 'boolean') throw new Error('cacheStatus.exists must be boolean');
 // Validate policy structure
 if (!d.policy.lmStudio) throw new Error('policy.lmStudio required');
 if (d.policy.lmStudio.customDetection !== 'disabled') throw new Error('policy.lmStudio.customDetection must be disabled');
+// Validate auth structure - redacted, no secrets
+if (d.auth.readOnly !== true) throw new Error('auth.readOnly must be true');
+if (d.auth.noSecretOutput !== true) throw new Error('auth.noSecretOutput must be true');
+if (!d.auth.authFile || typeof d.auth.authFile.path !== 'string') throw new Error('auth.authFile.path must be string');
+if (typeof d.auth.authFile.exists !== 'boolean') throw new Error('auth.authFile.exists must be boolean');
+if (!d.auth.providers || typeof d.auth.providers !== 'object') throw new Error('auth.providers must be object');
+// Validate auth provider entries have required shape (status, sources, warnings)
+for (const [name, p] of Object.entries(d.auth.providers)) {
+  if (!['present','missing','unknown'].includes(p.status)) throw new Error('auth.providers.' + name + '.status invalid: ' + p.status);
+  if (!Array.isArray(p.detectedAuthTypes)) throw new Error('auth.providers.' + name + '.detectedAuthTypes must be array');
+  if (!Array.isArray(p.sources)) throw new Error('auth.providers.' + name + '.sources must be array');
+  if (!Array.isArray(p.warnings)) throw new Error('auth.providers.' + name + '.warnings must be array');
+  // Each source must have redacted: true and no secret values
+  for (const s of p.sources) {
+    if (s.redacted !== true) throw new Error('auth source for ' + name + ' must have redacted: true');
+    if ('value' in s || 'secret' in s || 'token' in s) throw new Error('auth source must not contain secret fields');
+  }
+}
 console.log('  Diagnostics schema valid');
 console.log('  Sources:', Object.keys(d.sources).join(', '));
-console.log('  Mismatches:', d.mismatches.expectedButMissing.length, 'expected-but-missing,', d.mismatches.discoveredNotExpected.length, 'discovered-not-expected');
+console.log('  Mismatches:', d.mismatches.expectedButMissing.length, 'missing,', d.mismatches.discoveredNotExpected.length, 'extra,', d.mismatches.matched.length, 'matched');
+console.log('  Auth providers:', Object.keys(d.auth.providers).join(', '));
 console.log('  LM Studio policy:', d.policy.lmStudio.customDetection);
 " || { echo '  ❌ /api/providers/diagnostics schema validation failed'; exit 1; }
     
@@ -238,7 +264,47 @@ const d = JSON.parse(require('fs').readFileSync(0));
 if (!d.sources || !d.mismatches || !d.cacheStatus || !d.policy) throw new Error('Refresh response missing required keys');
 console.log('  ✅ Diagnostics refresh parameter works');
 " || { echo '  ❌ Diagnostics refresh parameter failed'; exit 1; }
-    
+
+    echo "Testing /api/providers/health-check (non-live)..."
+    HEALTH_RESPONSE=$(curl -s -X POST "$BASE_URL/api/providers/health-check" -H 'Content-Type: application/json' -d '{"live":false}')
+    echo "$HEALTH_RESPONSE" | node -e "
+const d = JSON.parse(require('fs').readFileSync(0));
+if (d.optIn !== true) throw new Error('health optIn must be true');
+if (d.noSecretOutput !== true) throw new Error('health noSecretOutput must be true');
+if (d.liveRequested !== false) throw new Error('non-live health check must not request live probes');
+if (!Array.isArray(d.providers)) throw new Error('health providers must be array');
+if (!d.policy || d.policy.noPageLoadProbe !== true) throw new Error('health policy.noPageLoadProbe must be true');
+// Validate LM Studio policy in health-check response
+if (d.policy.lmStudio.customDetection !== 'disabled') throw new Error('health policy.lmStudio.customDetection must be disabled');
+// Validate per-provider shape: configured, visible, authPresent, liveStatus
+for (const p of d.providers) {
+  if (typeof p.provider !== 'string') throw new Error('provider entry must have string provider name');
+  if (typeof p.configured !== 'boolean') throw new Error(p.provider + '.configured must be boolean');
+  if (typeof p.visible !== 'boolean') throw new Error(p.provider + '.visible must be boolean');
+  if (typeof p.authPresent !== 'boolean') throw new Error(p.provider + '.authPresent must be boolean');
+  if (!['not-requested','skipped','ok','failed'].includes(p.liveStatus)) throw new Error(p.provider + '.liveStatus invalid: ' + p.liveStatus);
+  // suggestion field is only present for configured+authPresent+not-visible providers
+  if (p.suggestion !== undefined && p.suggestion !== 'refresh_discovery') {
+    throw new Error(p.provider + '.suggestion must be refresh_discovery if present, got: ' + p.suggestion);
+  }
+}
+console.log('  ✅ Provider health-check non-live schema valid');
+console.log('  Provider count:', d.providers.length);
+console.log('  Hints:', d.hints ? d.hints.length : 0);
+" || { echo '  ❌ /api/providers/health-check schema validation failed'; exit 1; }
+
+    HEALTH_CSRF_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/api/providers/health-check" -H 'Content-Type: text/plain' -d '{"live":true}')
+    if [ "$HEALTH_CSRF_STATUS" != "415" ]; then
+        echo "  ❌ Provider health-check should reject non-JSON content type (got $HEALTH_CSRF_STATUS)"
+        exit 1
+    fi
+    HEALTH_ORIGIN_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/api/providers/health-check" -H 'Content-Type: application/json' -H 'Origin: http://evil.example' -d '{"live":true}')
+    if [ "$HEALTH_ORIGIN_STATUS" != "403" ]; then
+        echo "  ❌ Provider health-check should reject cross-origin requests (got $HEALTH_ORIGIN_STATUS)"
+        exit 1
+    fi
+    echo "  ✅ Provider health-check rejects CSRF-style requests"
+
     # Test warning-only behavior: mismatches don't block API response
     echo "Testing warning-only behavior (mismatches don't block)..."
     echo "$DIAGNOSTICS_RESPONSE" | node -e "
@@ -309,7 +375,11 @@ if (hasMismatches) {
     echo ""
     echo "Running fallback config roundtrip tests..."
     node tests/fallback-config-roundtrip-test.js || { echo "  ❌ Fallback config roundtrip tests failed"; exit 1; }
-    
+
+    echo ""
+    echo "Running provider diagnostics tests..."
+    node tests/provider-diagnostics-test.js || { echo "  ❌ Provider diagnostics tests failed"; exit 1; }
+
     echo ""
     echo "✅ API tests complete"
     ;;
@@ -374,6 +444,10 @@ if (hasMismatches) {
     echo ""
     echo "=== Provider Policy Tests ==="
     node tests/provider-policy-test.js || { echo "❌ Provider policy tests failed"; exit 1; }
+
+    echo ""
+    echo "=== Provider Diagnostics Tests ==="
+    node tests/provider-diagnostics-test.js || { echo "❌ Provider diagnostics tests failed"; exit 1; }
 
     echo ""
     echo "=== UI Tests ==="

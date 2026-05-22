@@ -113,14 +113,100 @@ curl http://localhost:3456/api/providers/diagnostics
 
 This returns:
 - `sources` - providers found in config files and agent assignments
-- `mismatches` - providers expected but missing, or discovered but not expected
-- `cacheStatus` - age of the models cache
+- `mismatches` - three buckets: `expectedButMissing`, `discoveredNotExpected`, and `matched` (providers found in both config and discovery)
+- `cacheStatus` - age and existence of the models cache
+- `auth` - read-only provider auth presence/type for supported providers, values always redacted
+- `policy` - LM Studio boundary and other policy flags
 - `hints` - actionable suggestions
 
-Common issues:
-- **Stale cache**: Cache is older than your config file. Click Refresh in the UI.
+#### Mismatch buckets
+
+The `mismatches` object has three arrays:
+- `expectedButMissing` - providers referenced in your config but with no discovered models (severity: warning)
+- `discoveredNotExpected` - providers with models but not explicitly in your config (severity: info)
+- `matched` - providers both configured and discovered (severity: info)
+
+Older versions used a different key name for the matched bucket. That key no longer exists — the current key is `matched`. All three buckets live under `mismatches`.
+
+#### Refresh with real discovery
+
+Calling with `?refresh=true` triggers an actual model discovery refresh:
+
+```bash
+curl http://localhost:3456/api/providers/diagnostics?refresh=true
+```
+
+This runs `opencode models --verbose` (or the internal equivalent) before building diagnostics, so the response reflects current provider state. If the refresh fails (network error, CLI timeout), the endpoint falls back to cached data and includes a hint like `"Model refresh failed: <error>; using cached data"`.
+
+Without `?refresh=true`, diagnostics are built from the existing cache file at `~/.config/opencode/cache/models-cache.json`.
+
+#### Old cache compatibility
+
+If the models cache has a `models` array but no `providers` key (older cache format), providers are derived from model entries using `model.providerID` or the `model.id` prefix. The diagnostics response includes a warning when this derivation happens: `"Cache providers key absent/empty; derived providers from model entries"`.
+
+#### Auth diagnostics
+
+The `auth` section reports provider auth metadata. It is read-only and never includes credential values:
+
+```json
+{
+  "auth": {
+    "readOnly": true,
+    "noSecretOutput": true,
+    "authFile": { "path": "~/.config/opencode/auth.json", "exists": false },
+    "providers": {
+      "xai": { "status": "missing", "detectedAuthTypes": [], "sources": [], "warnings": [] },
+      "deepseek": { "status": "present", "detectedAuthTypes": ["api-key"], "sources": [...], "warnings": [] }
+    }
+  }
+}
+```
+
+Each provider entry has:
+- `status` - `present`, `missing`, or `unknown`
+- `detectedAuthTypes` - e.g. `["api-key"]`, `["api-key", "oauth"]`
+- `sources` - where auth was found (auth-file, opencode-config, environment), with field names and redacted markers
+- `warnings` - any issues detected
+
+For `xai`, the tool detects both API-key and OAuth token auth. For `deepseek`, it detects API-key auth. Auth sources include the OpenCode auth file, provider config in `opencode.json`, and environment variables. No secret values are ever included in the response or rendered in the UI.
+
+#### Health check and refresh suggestion
+
+The health-check endpoint provides a non-live and opt-in live mode:
+
+```bash
+# Non-live: report configured/visible/auth state without probing
+curl -X POST http://localhost:3456/api/providers/health-check \
+  -H 'Content-Type: application/json' -d '{"live": false}'
+```
+
+When a provider is configured, has auth present, but is not visible in model discovery, the health-check response includes `suggestion: "refresh_discovery"` for that provider. This means you should run `opencode models --verbose` or hit `GET /api/models?refresh=true` before retrying a live probe. The tool does not auto-refresh or probe in this case.
+
+Live mode (`{ "live": true }`) runs a tiny OpenCode probe per provider and reports `liveStatus`/`liveOk`. Use this manually because it can spend tokens, hit rate limits, or surface provider-side errors. The tool skips the live probe entirely for non-visible providers.
+
+#### LM Studio boundary
+
+Model discovery is entirely CLI-driven through `opencode models --verbose`. The diagnostics response includes a policy object:
+
+```json
+{
+  "policy": {
+    "lmStudio": {
+      "customDetection": "disabled",
+      "reason": "LMStudio provider requires local server detection which is not implemented"
+    }
+  }
+}
+```
+
+This tool does not probe `localhost:1234` or any local inference server. If LM Studio models are not showing up, verify OpenCode is configured for LM Studio and run `opencode models --verbose`.
+
+#### Common issues
+
+- **Stale cache**: Cache is older than your config file. Click Refresh in the UI, or call `GET /api/models?refresh=true`.
 - **Provider name mismatch**: Some providers use different naming in different contexts. Check `normalized.discovered` vs `normalized.expected`.
 - **Missing from opencode.json**: Provider must be configured in `~/.config/opencode/opencode.json` first.
+- **Refresh hint in health check**: A provider shows `suggestion: "refresh_discovery"` when it has auth but no visible models. Run model discovery first.
 
 ### Model Visibility Troubleshooting
 
